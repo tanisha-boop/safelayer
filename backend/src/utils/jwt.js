@@ -1,10 +1,18 @@
 const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 
-function generateAccessToken(payload) {
-  return jwt.sign(payload, env.jwt.secret, {
-    expiresIn: env.jwt.expiresIn,
-  });
+function generateAccessToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      organizationId: user.organization_id,
+      roles: user.roles,
+    },
+    env.jwt.secret,
+    {
+      expiresIn: env.jwt.expiresIn,
+    }
+  );
 }
 
 function verifyAccessToken(token) {

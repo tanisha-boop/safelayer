@@ -13,7 +13,11 @@ function authenticate(req, res, next) {
 
     const payload = verifyAccessToken(token);
 
-    req.user = payload;
+    req.user = {
+      id: payload.sub,
+      organizationId: payload.organizationId,
+      roles: payload.roles || [],
+    };
 
     next();
   } catch (error) {

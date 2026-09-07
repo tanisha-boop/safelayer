@@ -1,21 +1,50 @@
 const express = require("express");
+
+const {
+  register,
+  login,
+  me,
+  logout,
+} = require("../controllers/authController");
+
+const authenticate = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
-const { loginSchema } = require("../validators/authValidation");
-const { authRateLimiter } = require("../middleware/rateLimiter");
+
+const {
+  authRateLimiter,
+} = require("../middleware/rateLimiter");
+
+const {
+  registerSchema,
+  loginSchema,
+} = require("../validators/authValidation");
 
 const router = express.Router();
+
+router.post(
+  "/register",
+  authRateLimiter,
+  validate(registerSchema),
+  register
+);
 
 router.post(
   "/login",
   authRateLimiter,
   validate(loginSchema),
-  (req, res) => {
-    res.json({
-      success: true,
-      message: "Login route is connected",
-      data: req.validated.body,
-    });
-  }
+  login
+);
+
+router.get(
+  "/me",
+  authenticate,
+  me
+);
+
+router.post(
+  "/logout",
+  authenticate,
+  logout
 );
 
 module.exports = router;
