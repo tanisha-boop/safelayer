@@ -1,5 +1,7 @@
 function errorHandler(err, req, res, next) {
-  console.error(err);
+  console.error("ERROR:", err);
+  console.error("MESSAGE:", err.message);
+  console.error("STACK:", err.stack);
 
   const statusCode = err.statusCode || 500;
 
@@ -7,7 +9,7 @@ function errorHandler(err, req, res, next) {
     success: false,
     message:
       statusCode === 500
-        ? "Internal server error"
+        ? err.message || "Internal server error"
         : err.message,
   });
 }

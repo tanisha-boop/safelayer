@@ -1,53 +1,67 @@
-function createSlug(name) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 150);
-}
+const pool = require("../config/database");
 
-async function createOrganization(connection, name) {
-  const baseSlug = createSlug(name);
-
-  let slug = baseSlug || `organization-${Date.now()}`;
-
-  let counter = 1;
-
-  while (true) {
-    const [existing] = await connection.execute(
-      `
-        SELECT id
-        FROM organizations
-        WHERE slug = ?
-        LIMIT 1
-      `,
-      [slug]
-    );
-
-    if (existing.length === 0) {
-      break;
-    }
-
-    slug = `${baseSlug}-${counter}`;
-    counter++;
-  }
-
+async function createOrganization(connection, { name, slug }) {
   const [result] = await connection.execute(
-    `
-      INSERT INTO organizations (name, slug)
-      VALUES (?, ?)
-    `,
+    `INSERT INTO organizations (name, slug)
+     VALUES (?, ?)`,
     [name, slug]
   );
 
   return {
     id: result.insertId,
     name,
-    slug
+    slug,
   };
 }
 
+async function findById(organizationId) {
+  const [rows] = await pool.execute(
+    `SELECT
+        id,
+        name,
+        slug,
+        created_at,
+        updated_at
+     FROM organizations
+     WHERE id = ?
+     LIMIT 1`,
+    [organizationId]
+  );
+
+  return rows[0] || null;
+}
+
+async function findBySlug(slug) {
+  const [rows] = await pool.execute(
+    `SELECT
+        id,
+        name,
+        slug,
+        created_at,
+        updated_at
+     FROM organizations
+     WHERE slug = ?
+     LIMIT 1`,
+    [slug]
+  );
+
+  return rows[0] || null;
+}
+
+async function updateOrganization(organizationId, { name }) {
+  await pool.execute(
+    `UPDATE organizations
+     SET name = ?
+     WHERE id = ?`,
+    [name, organizationId]
+  );
+
+  return findById(organizationId);
+}
+
 module.exports = {
-  createOrganization
+  createOrganization,
+  findById,
+  findBySlug,
+  updateOrganization,
 };

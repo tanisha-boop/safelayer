@@ -5,8 +5,10 @@ const cookieParser = require("cookie-parser");
 const requestLogger = require("./middleware/requestLogger");
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 const errorHandler = require("./middleware/errorHandler");
-
+const organizationRoutes = require("./routes/organizationRoutes");
+const userManagementRoutes = require("./routes/userManagementRoutes");
 const app = express();
 
 app.set("trust proxy", 1);
@@ -33,7 +35,9 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/activities", activityRoutes);
+app.use("/api/organization", organizationRoutes);
+app.use("/api/users", userManagementRoutes);
 app.use((req, res) => {
   res.status(404).json({
     success: false,
