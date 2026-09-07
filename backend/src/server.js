@@ -1,9 +1,6 @@
-require("dotenv").config();
-
 const app = require("./app");
+const env = require("./config/env");
 const pool = require("./config/database");
-
-const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
@@ -13,11 +10,15 @@ async function startServer() {
 
     connection.release();
 
-    app.listen(PORT, () => {
-      console.log(`SafeLayer API running on http://localhost:${PORT}`);
+    app.listen(env.port, () => {
+      console.log(
+        `SafeLayer API running on http://localhost:${env.port}`
+      );
     });
   } catch (error) {
-    console.error("Failed to start SafeLayer:", error);
+    console.error("Failed to connect to database:");
+    console.error(error.message);
+
     process.exit(1);
   }
 }
