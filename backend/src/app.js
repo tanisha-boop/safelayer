@@ -11,6 +11,7 @@ const errorHandler = require("./middleware/errorHandler");
 const authRoutes = require("./routes/authRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const evidenceRoutes = require("./routes/evidenceRoutes");
+const routeProofRoutes = require("./routes/routeProofRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
 const userManagementRoutes = require("./routes/userManagementRoutes");
 
@@ -45,6 +46,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/evidence", evidenceRoutes);
+app.use("/api/route-proof", routeProofRoutes);
 app.use("/api/organization", organizationRoutes);
 app.use("/api/users", userManagementRoutes);
 

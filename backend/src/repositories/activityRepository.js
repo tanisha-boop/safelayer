@@ -105,9 +105,10 @@ async function findActivities(
 
 async function findActivityById(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `SELECT
       fa.*,
       u.first_name,
@@ -146,9 +147,7 @@ async function updateActivity(
 
   for (const [key, value] of Object.entries(updates)) {
     if (allowedFields[key] !== undefined) {
-      fields.push(
-        `${allowedFields[key]} = ?`
-      );
+      fields.push(`${allowedFields[key]} = ?`);
       values.push(value);
     }
   }
@@ -180,16 +179,15 @@ async function updateActivity(
 async function updateStatus(
   organizationId,
   activityId,
-  status
+  status,
+  connection = pool
 ) {
   let query = `
     UPDATE field_activities
     SET status = ?
   `;
 
-  const params = [
-    status,
-  ];
+  const params = [status];
 
   if (status === "IN_PROGRESS") {
     query += `, completed_at = NULL`;
@@ -209,17 +207,48 @@ async function updateStatus(
     activityId
   );
 
-  await pool.execute(
+  await connection.execute(
     query,
     params
   );
 
   return findActivityById(
     organizationId,
-    activityId
+    activityId,
+    connection
   );
 }
 
+async function completeActivity(
+  organizationId,
+  activityId,
+  latitude,
+  longitude,
+  connection = pool
+) {
+  await connection.execute(
+    `UPDATE field_activities
+     SET
+       status = 'COMPLETED',
+       completed_at = NOW(),
+       latitude = ?,
+       longitude = ?
+     WHERE organization_id = ?
+       AND id = ?`,
+    [
+      latitude,
+      longitude,
+      organizationId,
+      activityId,
+    ]
+  );
+
+  return findActivityById(
+    organizationId,
+    activityId,
+    connection
+  );
+}
 module.exports = {
   findUserForAssignment,
   createActivity,
@@ -227,4 +256,5 @@ module.exports = {
   findActivityById,
   updateActivity,
   updateStatus,
+  completeActivity,
 };
