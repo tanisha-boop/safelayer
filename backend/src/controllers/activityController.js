@@ -2,10 +2,11 @@ const activityService = require("../services/activityService");
 
 async function create(req, res, next) {
   try {
-    const activity = await activityService.createActivity(
-      req.user.organizationId,
-      req.validated.body
-    );
+    const activity =
+      await activityService.createActivity({
+        organizationId: req.user.organizationId,
+        ...req.validated.body,
+      });
 
     res.status(201).json({
       success: true,
@@ -18,10 +19,9 @@ async function create(req, res, next) {
 
 async function list(req, res, next) {
   try {
-    const activities =
-      await activityService.listActivities(
-        req.user.organizationId
-      );
+    const activities = await activityService.getActivities(
+      req.user.organizationId
+    );
 
     res.json({
       success: true,

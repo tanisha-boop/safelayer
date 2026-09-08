@@ -98,6 +98,7 @@ async function updateUser(
     const error = new Error(
       "The organization owner role cannot be changed"
     );
+
     error.statusCode = 403;
     throw error;
   }
@@ -144,6 +145,7 @@ async function deactivateUser(
     const error = new Error(
       "You cannot deactivate your own account"
     );
+
     error.statusCode = 400;
     throw error;
   }
@@ -152,6 +154,7 @@ async function deactivateUser(
     const error = new Error(
       "The organization owner cannot be deactivated"
     );
+
     error.statusCode = 403;
     throw error;
   }

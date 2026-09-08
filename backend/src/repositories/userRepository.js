@@ -268,14 +268,67 @@ async function findRoleByName(roleName) {
 }
 
 async function assignRole(userId, roleId) {
-  await pool.execute(
-    `
-      INSERT IGNORE INTO user_roles
-        (user_id, role_id)
-      VALUES (?, ?)
-    `,
-    [userId, roleId]
-  );
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `
+        DELETE FROM user_roles
+        WHERE user_id = ?
+      `,
+      [userId]
+    );
+
+    await connection.execute(
+      `
+        INSERT INTO user_roles
+          (user_id, role_id)
+        VALUES (?, ?)
+      `,
+      [userId, roleId]
+    );
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function replaceUserRole(userId, roleId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `
+        DELETE FROM user_roles
+        WHERE user_id = ?
+      `,
+      [userId]
+    );
+
+    await connection.execute(
+      `
+        INSERT INTO user_roles
+          (user_id, role_id)
+        VALUES (?, ?)
+      `,
+      [userId, roleId]
+    );
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 module.exports = {
@@ -290,4 +343,5 @@ module.exports = {
   findUserPermissions,
   findRoleByName,
   assignRole,
+  replaceUserRole,
 };

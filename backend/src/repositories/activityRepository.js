@@ -1,5 +1,29 @@
 const pool = require("../config/database");
 
+async function findUserForAssignment(
+  organizationId,
+  userId
+) {
+  const [rows] = await pool.execute(
+    `SELECT
+      id,
+      organization_id,
+      first_name,
+      last_name,
+      email,
+      role,
+      is_active
+     FROM users
+     WHERE id = ?
+       AND organization_id = ?
+       AND is_active = 1
+     LIMIT 1`,
+    [userId, organizationId]
+  );
+
+  return rows[0] || null;
+}
+
 async function createActivity({
   organizationId,
   assignedTo,
@@ -11,70 +35,91 @@ async function createActivity({
   longitude,
 }) {
   const [result] = await pool.execute(
-    `
-      INSERT INTO field_activities
-      (
-        organization_id,
-        assigned_to,
-        activity_type,
-        title,
-        description,
-        scheduled_at,
-        latitude,
-        longitude
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
+    `INSERT INTO field_activities (
+      organization_id,
+      assigned_to,
+      activity_type,
+      title,
+      description,
+      scheduled_at,
+      latitude,
+      longitude
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       organizationId,
       assignedTo,
       activityType,
       title,
-      description || null,
-      scheduledAt || null,
-      latitude ?? null,
-      longitude ?? null,
+      description,
+      scheduledAt,
+      latitude,
+      longitude,
     ]
   );
 
-  return findActivityById(organizationId, result.insertId);
+  return findActivityById(
+    organizationId,
+    result.insertId
+  );
 }
 
-async function findActivities(organizationId) {
+async function findActivities(
+  organizationId,
+  filters = {}
+) {
+  let query = `
+    SELECT
+      fa.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role AS user_role
+    FROM field_activities fa
+    INNER JOIN users u
+      ON u.id = fa.assigned_to
+    WHERE fa.organization_id = ?
+  `;
+
+  const params = [organizationId];
+
+  if (filters.status) {
+    query += ` AND fa.status = ?`;
+    params.push(filters.status);
+  }
+
+  if (filters.assignedTo) {
+    query += ` AND fa.assigned_to = ?`;
+    params.push(filters.assignedTo);
+  }
+
+  query += ` ORDER BY fa.created_at DESC`;
+
   const [rows] = await pool.execute(
-    `
-      SELECT
-        fa.*,
-        u.first_name,
-        u.last_name,
-        u.email
-      FROM field_activities fa
-      INNER JOIN users u
-        ON u.id = fa.assigned_to
-      WHERE fa.organization_id = ?
-      ORDER BY fa.created_at DESC
-    `,
-    [organizationId]
+    query,
+    params
   );
 
   return rows;
 }
 
-async function findActivityById(organizationId, activityId) {
+async function findActivityById(
+  organizationId,
+  activityId
+) {
   const [rows] = await pool.execute(
-    `
-      SELECT
-        fa.*,
-        u.first_name,
-        u.last_name,
-        u.email
-      FROM field_activities fa
-      INNER JOIN users u
-        ON u.id = fa.assigned_to
-      WHERE fa.organization_id = ?
-        AND fa.id = ?
-      LIMIT 1
-    `,
+    `SELECT
+      fa.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role AS user_role
+     FROM field_activities fa
+     INNER JOIN users u
+       ON u.id = fa.assigned_to
+     WHERE fa.organization_id = ?
+       AND fa.id = ?
+     LIMIT 1`,
     [organizationId, activityId]
   );
 
@@ -86,9 +131,6 @@ async function updateActivity(
   activityId,
   updates
 ) {
-  const fields = [];
-  const values = [];
-
   const allowedFields = {
     assignedTo: "assigned_to",
     activityType: "activity_type",
@@ -99,91 +141,90 @@ async function updateActivity(
     longitude: "longitude",
   };
 
-  for (const [key, column] of Object.entries(allowedFields)) {
-    if (updates[key] !== undefined) {
-      fields.push(`${column} = ?`);
-      values.push(updates[key]);
+  const fields = [];
+  const values = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (allowedFields[key] !== undefined) {
+      fields.push(
+        `${allowedFields[key]} = ?`
+      );
+      values.push(value);
     }
   }
 
   if (fields.length === 0) {
-    return findActivityById(organizationId, activityId);
+    return findActivityById(
+      organizationId,
+      activityId
+    );
   }
 
-  values.push(organizationId, activityId);
+  values.push(organizationId);
+  values.push(activityId);
 
   await pool.execute(
-    `
-      UPDATE field_activities
-      SET ${fields.join(", ")}
-      WHERE organization_id = ?
-        AND id = ?
-    `,
+    `UPDATE field_activities
+     SET ${fields.join(", ")}
+     WHERE organization_id = ?
+       AND id = ?`,
     values
   );
 
-  return findActivityById(organizationId, activityId);
+  return findActivityById(
+    organizationId,
+    activityId
+  );
 }
 
-async function updateActivityStatus(
+async function updateStatus(
   organizationId,
   activityId,
   status
 ) {
-  const [result] = await pool.execute(
-    `
-      UPDATE field_activities
-      SET status = ?
-      WHERE organization_id = ?
-        AND id = ?
-    `,
-    [status, organizationId, activityId]
-  );
+  let query = `
+    UPDATE field_activities
+    SET status = ?
+  `;
 
-  if (result.affectedRows === 0) {
-    return null;
+  const params = [
+    status,
+  ];
+
+  if (status === "IN_PROGRESS") {
+    query += `, completed_at = NULL`;
   }
 
-  return findActivityById(organizationId, activityId);
-}
-
-async function completeActivity(
-  organizationId,
-  activityId,
-  latitude,
-  longitude
-) {
-  const [result] = await pool.execute(
-    `
-      UPDATE field_activities
-      SET
-        status = 'COMPLETED',
-        completed_at = NOW(),
-        latitude = COALESCE(?, latitude),
-        longitude = COALESCE(?, longitude)
-      WHERE organization_id = ?
-        AND id = ?
-    `,
-    [
-      latitude ?? null,
-      longitude ?? null,
-      organizationId,
-      activityId,
-    ]
-  );
-
-  if (result.affectedRows === 0) {
-    return null;
+  if (status === "COMPLETED") {
+    query += `, completed_at = NOW()`;
   }
 
-  return findActivityById(organizationId, activityId);
+  query += `
+    WHERE organization_id = ?
+      AND id = ?
+  `;
+
+  params.push(
+    organizationId,
+    activityId
+  );
+
+  await pool.execute(
+    query,
+    params
+  );
+
+  return findActivityById(
+    organizationId,
+    activityId
+  );
 }
 
 module.exports = {
+  findUserForAssignment,
   createActivity,
   findActivities,
   findActivityById,
   updateActivity,
-  updateActivityStatus,
-  completeActivity,
+  updateStatus,
 };
