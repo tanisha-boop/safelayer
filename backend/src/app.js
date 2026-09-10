@@ -17,6 +17,8 @@ const userManagementRoutes = require("./routes/userManagementRoutes");
 const fieldLedgerRoutes = require("./routes/fieldLedgerRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const auditRoutes = require("./routes/auditRoutes");
+const trustRoutes = require("./routes/trustRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 const app = express();
 
@@ -55,6 +57,8 @@ app.use("/api/users", userManagementRoutes);
 app.use("/api/field-ledger", fieldLedgerRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/audit-events", auditRoutes);
+app.use("/api/trust", trustRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

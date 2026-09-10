@@ -260,6 +260,7 @@ async function createRiskAssessment({
     `
       INSERT INTO risk_assessments (
         activity_id,
+        assessment_type,
         trust_score,
         risk_level,
         location_verified,
@@ -269,7 +270,7 @@ async function createRiskAssessment({
         requires_review,
         explanation
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, 'INVOICE', ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       activityId,
@@ -407,6 +408,7 @@ async function findLatestRiskAssessment(
       SELECT *
       FROM risk_assessments
       WHERE activity_id = ?
+        AND assessment_type = 'INVOICE'
       ORDER BY created_at DESC
       LIMIT 1
     `,
