@@ -16,6 +16,7 @@ const organizationRoutes = require("./routes/organizationRoutes");
 const userManagementRoutes = require("./routes/userManagementRoutes");
 const fieldLedgerRoutes = require("./routes/fieldLedgerRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use("/api/organization", organizationRoutes);
 app.use("/api/users", userManagementRoutes);
 app.use("/api/field-ledger", fieldLedgerRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use("/api/audit-events", auditRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
