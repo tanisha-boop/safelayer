@@ -1,11 +1,51 @@
 const pool = require("../config/database");
-const fieldLedgerRepository = require("../repositories/fieldLedgerRepository");
-const activityRepository = require("../repositories/activityRepository");
+
+const fieldLedgerRepository =
+  require("../repositories/fieldLedgerRepository");
+
+const activityRepository =
+  require("../repositories/activityRepository");
+
+const userRepository =
+  require("../repositories/userRepository");
 
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+}
+
+function hasRole(currentUser, roles) {
+  return currentUser.roles.some((role) =>
+    roles.includes(role)
+  );
+}
+
+async function getActiveCollectorOrThrow(
+  organizationId,
+  collectorId
+) {
+  const collector =
+    await userRepository.findUserByIdAndOrganization(
+      collectorId,
+      organizationId
+    );
+
+  if (!collector) {
+    throw createError(
+      "Collector not found in this organization",
+      404
+    );
+  }
+
+  if (!collector.is_active) {
+    throw createError(
+      "Collector account is inactive",
+      409
+    );
+  }
+
+  return collector;
 }
 
 async function getCollectionOrThrow(
@@ -33,6 +73,12 @@ async function createCollection(
   currentUser,
   data
 ) {
+  const collector =
+    await getActiveCollectorOrThrow(
+      organizationId,
+      data.collectorId
+    );
+
   const activity =
     await activityRepository.findActivityById(
       organizationId,
@@ -54,20 +100,23 @@ async function createCollection(
   }
 
   if (
-    currentUser.id !== activity.assigned_to &&
-    !currentUser.roles.some((role) =>
-      ["OWNER", "ADMIN", "MANAGER"].includes(role)
-    )
+    !hasRole(currentUser, [
+      "OWNER",
+      "ADMIN",
+      "MANAGER",
+    ])
   ) {
     throw createError(
-      "You are not authorized to create a collection for this activity",
+      "Only management can create collection records",
       403
     );
   }
 
-  if (Number(data.expectedAmount) <= 0) {
+  if (
+    data.collectorId !== activity.assigned_to
+  ) {
     throw createError(
-      "Expected amount must be greater than zero",
+      "Collector must match the employee assigned to the activity",
       400
     );
   }
@@ -108,59 +157,188 @@ async function collectPayment(
   collectionId,
   data
 ) {
-  const collection =
-    await getCollectionOrThrow(
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const collection =
+      await fieldLedgerRepository.findCollectionForUpdate(
+        connection,
+        organizationId,
+        collectionId
+      );
+
+    if (!collection) {
+      throw createError(
+        "Collection record not found",
+        404
+      );
+    }
+
+    if (
+      collection.collector_id !== currentUser.id &&
+      !hasRole(currentUser, [
+        "OWNER",
+        "ADMIN",
+        "MANAGER",
+      ])
+    ) {
+      throw createError(
+        "You are not authorized to record this collection",
+        403
+      );
+    }
+
+    if (
+      ["CANCELLED", "RECONCILED"].includes(
+        collection.collection_status
+      )
+    ) {
+      throw createError(
+        "This collection can no longer be modified",
+        409
+      );
+    }
+
+    const existingRemittance =
+      await fieldLedgerRepository.findCollectionRemittance(
+        connection,
+        organizationId,
+        collectionId
+      );
+
+    if (existingRemittance) {
+      throw createError(
+        "This collection is already included in a remittance and cannot be modified",
+        409
+      );
+    }
+
+    const collectedAmount =
+      Number(data.collectedAmount);
+
+    const expectedAmount =
+      Number(collection.expected_amount);
+
+    let status = "COLLECTED";
+
+    if (collectedAmount === 0) {
+      status = "EXPECTED";
+    } else if (
+      collectedAmount < expectedAmount
+    ) {
+      status = "PARTIAL";
+    }
+
+    if (
+      collectedAmount > expectedAmount
+    ) {
+      status = "DISPUTED";
+    }
+
+    await fieldLedgerRepository.updateCollectionAmount(
+      connection,
+      organizationId,
+      collectionId,
+      collectedAmount,
+      status,
+      data.collectedAt
+        ? new Date(data.collectedAt)
+        : new Date(),
+      data.notes
+    );
+
+    /*
+     * Keep the financial transaction synchronized
+     * with the latest collection amount.
+     *
+     * We update the existing transaction instead
+     * of creating duplicates when a collection
+     * changes from partial -> full or full -> partial.
+     */
+    const existingTransaction =
+      await fieldLedgerRepository.findTransactionByReference(
+        connection,
+        organizationId,
+        collection.reference_number
+      );
+
+    const transactionDate =
+      data.collectedAt
+        ? new Date(data.collectedAt)
+        : new Date();
+
+    if (existingTransaction) {
+      await fieldLedgerRepository.updateTransaction(
+        connection,
+        organizationId,
+        existingTransaction.id,
+        {
+          amount: collectedAmount,
+          transactionDate,
+          status:
+            collectedAmount === 0
+              ? "VOIDED"
+              : status === "DISPUTED"
+                ? "REQUIRES_REVIEW"
+                : "CONFIRMED",
+        }
+      );
+    } else if (collectedAmount > 0) {
+      await fieldLedgerRepository.createTransaction(
+        connection,
+        {
+          organizationId,
+          activityId:
+            collection.activity_id,
+          transactionReference:
+            collection.reference_number,
+          amount: collectedAmount,
+          transactionDate,
+          createdBy: currentUser.id,
+          status:
+            status === "DISPUTED"
+              ? "REQUIRES_REVIEW"
+              : "CONFIRMED",
+        }
+      );
+    }
+
+    await fieldLedgerRepository.createAuditEvent(
+      connection,
+      {
+        organizationId,
+        actorId: currentUser.id,
+        action: "COLLECTION_RECORDED",
+        entityType: "COLLECTION",
+        entityId: collectionId,
+        oldValues: {
+          collected_amount:
+            collection.collected_amount,
+          collection_status:
+            collection.collection_status,
+        },
+        newValues: {
+          collected_amount:
+            collectedAmount,
+          collection_status: status,
+        },
+      }
+    );
+
+    await connection.commit();
+
+    return getCollectionOrThrow(
       organizationId,
       collectionId
     );
-
-  if (
-    collection.collector_id !== currentUser.id &&
-    !currentUser.roles.some((role) =>
-      ["OWNER", "ADMIN", "MANAGER"].includes(role)
-    )
-  ) {
-    throw createError(
-      "You are not authorized to record this collection",
-      403
-    );
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
-
-  if (
-    ["CANCELLED", "RECONCILED"].includes(
-      collection.collection_status
-    )
-  ) {
-    throw createError(
-      "This collection can no longer be modified",
-      409
-    );
-  }
-
-  const collectedAmount =
-    Number(data.collectedAmount);
-
-  const expectedAmount =
-    Number(collection.expected_amount);
-
-  let status = "COLLECTED";
-
-  if (collectedAmount === 0) {
-    status = "EXPECTED";
-  } else if (collectedAmount < expectedAmount) {
-    status = "PARTIAL";
-  }
-
-  return fieldLedgerRepository.updateCollectionAmount(
-    organizationId,
-    collectionId,
-    collectedAmount,
-    status,
-    data.collectedAt
-      ? new Date(data.collectedAt)
-      : new Date(),
-    data.notes
-  );
 }
 
 async function createRemittance(
@@ -168,11 +346,19 @@ async function createRemittance(
   currentUser,
   data
 ) {
+  await getActiveCollectorOrThrow(
+    organizationId,
+    data.collectorId
+  );
+
   if (
     currentUser.id !== data.collectorId &&
-    !currentUser.roles.some((role) =>
-      ["OWNER", "ADMIN", "MANAGER", "FINANCE"].includes(role)
-    )
+    !hasRole(currentUser, [
+      "OWNER",
+      "ADMIN",
+      "MANAGER",
+      "FINANCE",
+    ])
   ) {
     throw createError(
       "You are not authorized to create this remittance",
@@ -185,6 +371,10 @@ async function createRemittance(
   try {
     await connection.beginTransaction();
 
+    /*
+     * expected_amount starts at zero.
+     * It will be calculated from remittance items.
+     */
     const remittanceId =
       await fieldLedgerRepository.createRemittance(
         connection,
@@ -193,13 +383,27 @@ async function createRemittance(
           collectorId: data.collectorId,
           remittanceReference:
             data.remittanceReference,
-          declaredAmount:
-            data.declaredAmount,
-          remittedAt:
-            new Date(data.remittedAt),
-          notes: data.notes,
+          expectedAmount: 0,
+          actualAmount: data.declaredAmount,
         }
       );
+
+    await fieldLedgerRepository.createAuditEvent(
+      connection,
+      {
+        organizationId,
+        actorId: currentUser.id,
+        action: "REMITTANCE_CREATED",
+        entityType: "REMITTANCE",
+        entityId: remittanceId,
+        newValues: {
+          collector_id:
+            data.collectorId,
+          actual_amount:
+            data.declaredAmount,
+        },
+      }
+    );
 
     await connection.commit();
 
@@ -249,9 +453,12 @@ async function addRemittanceItem(
 
     if (
       remittance.collector_id !== currentUser.id &&
-      !currentUser.roles.some((role) =>
-        ["OWNER", "ADMIN", "MANAGER", "FINANCE"].includes(role)
-      )
+      !hasRole(currentUser, [
+        "OWNER",
+        "ADMIN",
+        "MANAGER",
+        "FINANCE",
+      ])
     ) {
       throw createError(
         "You are not authorized to modify this remittance",
@@ -284,23 +491,59 @@ async function addRemittanceItem(
     }
 
     if (
-      ["CANCELLED", "RECONCILED"].includes(
-        collection.collection_status
-      )
+      collection.collection_status ===
+      "CANCELLED"
     ) {
       throw createError(
-        "Collection cannot be added to a remittance",
+        "Cancelled collections cannot be remitted",
         409
       );
     }
 
     if (
-      Number(data.amount) >
+      Number(collection.collected_amount) <= 0
+    ) {
+      throw createError(
+        "Only collected amounts greater than zero can be remitted",
+        400
+      );
+    }
+
+    if (
+      Number(data.amount) !==
       Number(collection.collected_amount)
     ) {
       throw createError(
-        "Remittance amount cannot exceed collected amount",
+        "Remittance amount must equal the full collected amount",
         400
+      );
+    }
+
+    const existingRemittance =
+      await fieldLedgerRepository.findCollectionRemittance(
+        connection,
+        organizationId,
+        data.collectionId
+      );
+
+    if (existingRemittance) {
+      throw createError(
+        "This collection has already been included in a remittance",
+        409
+      );
+    }
+
+    const transaction =
+      await fieldLedgerRepository.findTransactionByActivity(
+        connection,
+        organizationId,
+        collection.activity_id
+      );
+
+    if (!transaction) {
+      throw createError(
+        "Financial transaction not found for this collection",
+        409
       );
     }
 
@@ -312,6 +555,42 @@ async function addRemittanceItem(
         collectionId: data.collectionId,
         amount: data.amount,
       }
+    );
+
+    await fieldLedgerRepository.linkRemittanceTransaction(
+      connection,
+      remittanceId,
+      transaction.id
+    );
+
+    await fieldLedgerRepository.createAuditEvent(
+      connection,
+      {
+        organizationId,
+        actorId: currentUser.id,
+        action: "REMITTANCE_ITEM_ADDED",
+        entityType: "REMITTANCE",
+        entityId: remittanceId,
+        newValues: {
+          collection_id: data.collectionId,
+          transaction_id: transaction.id,
+          amount: Number(data.amount),
+        },
+      }
+    );
+
+    const expectedAmount =
+      await fieldLedgerRepository.getRemittanceTotal(
+        connection,
+        organizationId,
+        remittanceId
+      );
+
+    await fieldLedgerRepository.updateRemittanceExpectedAmount(
+      connection,
+      organizationId,
+      remittanceId,
+      expectedAmount
     );
 
     await connection.commit();
@@ -342,9 +621,11 @@ async function verifyRemittance(
   remittanceId
 ) {
   if (
-    !currentUser.roles.some((role) =>
-      ["OWNER", "ADMIN", "FINANCE"].includes(role)
-    )
+    !hasRole(currentUser, [
+      "OWNER",
+      "ADMIN",
+      "FINANCE",
+    ])
   ) {
     throw createError(
       "Only finance or authorized administrators can verify remittances",
@@ -371,48 +652,142 @@ async function verifyRemittance(
       );
     }
 
-    if (remittance.status !== "PENDING") {
+    if (
+      !["PENDING", "SUBMITTED"].includes(
+        remittance.status
+      )
+    ) {
       throw createError(
         "This remittance has already been processed",
         409
       );
     }
 
-    const total =
+    const expectedAmount =
       await fieldLedgerRepository.getRemittanceTotal(
         connection,
         organizationId,
         remittanceId
       );
 
-    const declaredAmount =
-      Number(remittance.declared_amount);
+    const actualAmount =
+      Number(remittance.actual_amount);
 
-    const discrepancy =
-      Number((declaredAmount - total).toFixed(2));
+    const variance =
+      Number(
+        (actualAmount - expectedAmount).toFixed(2)
+      );
 
-    const status =
-      discrepancy === 0
+    const reconciliationStatus =
+      variance === 0
+        ? "MATCHED"
+        : "INVESTIGATION";
+
+    const remittanceStatus =
+      variance === 0
         ? "VERIFIED"
-        : "REJECTED";
+        : "DISPUTED";
+
+    await fieldLedgerRepository.updateRemittanceExpectedAmount(
+      connection,
+      organizationId,
+      remittanceId,
+      expectedAmount
+    );
 
     await fieldLedgerRepository.verifyRemittance(
       connection,
       organizationId,
       remittanceId,
       currentUser.id,
-      total,
-      discrepancy,
-      status
+      remittanceStatus
     );
 
-    if (status === "VERIFIED") {
+    await fieldLedgerRepository.createReconciliation(
+      connection,
+      {
+        organizationId,
+        remittanceId,
+        expectedAmount,
+        actualAmount,
+        status: reconciliationStatus,
+        notes:
+          variance === 0
+            ? "Remittance matched collected amount."
+            : `Variance detected: ${variance.toFixed(2)} PHP`,
+      }
+    );
+
+    if (variance === 0) {
       await fieldLedgerRepository.markCollectionsReconciled(
         connection,
         organizationId,
         remittanceId
       );
+    } else {
+      const [transactionRows] =
+        await connection.execute(
+          `SELECT
+             t.id,
+             t.activity_id
+           FROM remittance_transactions rt
+           INNER JOIN transactions t
+             ON t.id = rt.transaction_id
+           WHERE rt.remittance_id = ?
+           ORDER BY t.id DESC
+           LIMIT 1`,
+          [remittanceId]
+        );
+
+      const linkedTransaction =
+        transactionRows[0] || null;
+
+      await fieldLedgerRepository.createReview(
+        connection,
+        {
+          organizationId,
+          activityId:
+            linkedTransaction?.activity_id ||
+            null,
+          transactionId:
+            linkedTransaction?.id ||
+            null,
+          assignedTo: null,
+          priority:
+            Math.abs(variance) >= 1000
+              ? "CRITICAL"
+              : "HIGH",
+          reason:
+            `Remittance variance detected. ` +
+            `Expected ${expectedAmount.toFixed(2)} PHP, ` +
+            `actual ${actualAmount.toFixed(2)} PHP, ` +
+            `variance ${variance.toFixed(2)} PHP.`,
+        }
+      );
     }
+
+    await fieldLedgerRepository.createAuditEvent(
+      connection,
+      {
+        organizationId,
+        actorId: currentUser.id,
+        action:
+          variance === 0
+            ? "REMITTANCE_VERIFIED"
+            : "REMITTANCE_DISPUTED",
+        entityType: "REMITTANCE",
+        entityId: remittanceId,
+        oldValues: {
+          status: remittance.status,
+        },
+        newValues: {
+          status: remittanceStatus,
+          expected_amount: expectedAmount,
+          actual_amount: actualAmount,
+          variance_amount: variance,
+        },
+      }
+    );
 
     await connection.commit();
 
@@ -427,6 +802,12 @@ async function verifyRemittance(
           organizationId,
           remittanceId
         ),
+      reconciliation: {
+        expectedAmount,
+        actualAmount,
+        variance,
+        status: reconciliationStatus,
+      },
     };
   } catch (error) {
     await connection.rollback();

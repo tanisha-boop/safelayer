@@ -43,6 +43,7 @@ async function findCollectionById(
       cr.*,
       fa.title AS activity_title,
       fa.activity_type,
+      fa.status AS activity_status,
       u.first_name,
       u.last_name,
       u.email AS collector_email
@@ -72,6 +73,7 @@ async function findCollections(
       cr.*,
       fa.title AS activity_title,
       fa.activity_type,
+      fa.status AS activity_status,
       u.first_name,
       u.last_name,
       u.email AS collector_email
@@ -105,7 +107,28 @@ async function findCollections(
   return rows;
 }
 
+async function findCollectionForUpdate(
+  connection,
+  organizationId,
+  collectionId
+) {
+  const [rows] = await connection.execute(
+    `SELECT *
+     FROM collection_records
+     WHERE organization_id = ?
+       AND id = ?
+     FOR UPDATE`,
+    [
+      organizationId,
+      collectionId,
+    ]
+  );
+
+  return rows[0] || null;
+}
+
 async function updateCollectionAmount(
+  connection,
   organizationId,
   collectionId,
   collectedAmount,
@@ -113,7 +136,7 @@ async function updateCollectionAmount(
   collectedAt,
   notes
 ) {
-  await pool.execute(
+  await connection.execute(
     `UPDATE collection_records
      SET
        collected_amount = ?,
@@ -138,15 +161,136 @@ async function updateCollectionAmount(
   );
 }
 
+async function createTransaction(
+  connection,
+  {
+    organizationId,
+    activityId,
+    transactionReference,
+    amount,
+    transactionDate,
+    createdBy,
+    status,
+  }
+) {
+  const [result] = await connection.execute(
+    `INSERT INTO transactions (
+      organization_id,
+      activity_id,
+      transaction_reference,
+      transaction_type,
+      amount,
+      currency,
+      status,
+      transaction_date,
+      created_by
+    )
+    VALUES (?, ?, ?, 'COLLECTION', ?, 'PHP', ?, ?, ?)`,
+    [
+      organizationId,
+      activityId,
+      transactionReference,
+      amount,
+      status,
+      transactionDate,
+      createdBy,
+    ]
+  );
+
+  return result.insertId;
+}
+
+async function findTransactionByActivity(
+  connection,
+  organizationId,
+  activityId
+) {
+  const [rows] = await connection.execute(
+    `SELECT *
+     FROM transactions
+     WHERE organization_id = ?
+       AND activity_id = ?
+       AND transaction_type = 'COLLECTION'
+     ORDER BY id DESC
+     LIMIT 1`,
+    [
+      organizationId,
+      activityId,
+    ]
+  );
+
+  return rows[0] || null;
+}
+
+
+async function findTransactionByReference(
+  connection,
+  organizationId,
+  transactionReference
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        organization_id,
+        activity_id,
+        transaction_reference,
+        transaction_type,
+        amount,
+        currency,
+        status,
+        transaction_date,
+        created_by,
+        created_at,
+        updated_at
+      FROM transactions
+      WHERE organization_id = ?
+        AND transaction_reference = ?
+      LIMIT 1
+    `,
+    [organizationId, transactionReference]
+  );
+
+  return rows[0] || null;
+}
+
+async function updateTransaction(
+  connection,
+  organizationId,
+  transactionId,
+  {
+    amount,
+    transactionDate,
+    status,
+  }
+) {
+  await connection.execute(
+    `UPDATE transactions
+     SET
+       amount = ?,
+       transaction_date = ?,
+       status = ?
+     WHERE organization_id = ?
+       AND id = ?
+       AND transaction_type = 'COLLECTION'`,
+    [
+      amount,
+      transactionDate,
+      status,
+      organizationId,
+      transactionId,
+    ]
+  );
+}
+
 async function createRemittance(
   connection,
   {
     organizationId,
     collectorId,
     remittanceReference,
-    declaredAmount,
-    remittedAt,
-    notes,
+    expectedAmount,
+    actualAmount,
   }
 ) {
   const [result] = await connection.execute(
@@ -154,18 +298,99 @@ async function createRemittance(
       organization_id,
       collector_id,
       remittance_reference,
-      declared_amount,
-      remitted_at,
-      notes
+      expected_amount,
+      actual_amount,
+      status
     )
-    VALUES (?, ?, ?, ?, ?, ?)`,
+    VALUES (?, ?, ?, ?, ?, 'PENDING')`,
     [
       organizationId,
       collectorId,
       remittanceReference,
-      declaredAmount,
-      remittedAt,
-      notes || null,
+      expectedAmount,
+      actualAmount,
+    ]
+  );
+
+  return result.insertId;
+}
+
+async function findCollectionRemittance(
+  connection,
+  organizationId,
+  collectionId
+) {
+  const [rows] = await connection.execute(
+    `SELECT
+       ri.id AS remittance_item_id,
+       ri.remittance_id,
+       ri.amount,
+       r.status AS remittance_status
+     FROM remittance_items ri
+     INNER JOIN remittances r
+       ON r.id = ri.remittance_id
+     WHERE ri.organization_id = ?
+       AND ri.collection_id = ?
+     ORDER BY ri.id DESC
+     LIMIT 1`,
+    [
+      organizationId,
+      collectionId,
+    ]
+  );
+
+  return rows[0] || null;
+}
+
+async function linkRemittanceTransaction(
+  connection,
+  remittanceId,
+  transactionId
+) {
+  await connection.execute(
+    `INSERT INTO remittance_transactions (
+      remittance_id,
+      transaction_id
+    )
+    VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE
+      transaction_id = VALUES(transaction_id)`,
+    [
+      remittanceId,
+      transactionId,
+    ]
+  );
+}
+
+async function createReview(
+  connection,
+  {
+    organizationId,
+    activityId,
+    transactionId,
+    assignedTo,
+    priority,
+    reason,
+  }
+) {
+  const [result] = await connection.execute(
+    `INSERT INTO reviews (
+      organization_id,
+      activity_id,
+      transaction_id,
+      assigned_to,
+      status,
+      priority,
+      reason
+    )
+    VALUES (?, ?, ?, ?, 'OPEN', ?, ?)`,
+    [
+      organizationId,
+      activityId || null,
+      transactionId || null,
+      assignedTo || null,
+      priority,
+      reason,
     ]
   );
 
@@ -255,26 +480,6 @@ async function findRemittanceItems(
   return rows;
 }
 
-async function findCollectionForUpdate(
-  connection,
-  organizationId,
-  collectionId
-) {
-  const [rows] = await connection.execute(
-    `SELECT *
-     FROM collection_records
-     WHERE organization_id = ?
-       AND id = ?
-     FOR UPDATE`,
-    [
-      organizationId,
-      collectionId,
-    ]
-  );
-
-  return rows[0] || null;
-}
-
 async function findRemittanceForUpdate(
   connection,
   organizationId,
@@ -315,32 +520,137 @@ async function getRemittanceTotal(
   return Number(rows[0].total);
 }
 
+async function updateRemittanceExpectedAmount(
+  connection,
+  organizationId,
+  remittanceId,
+  expectedAmount
+) {
+  await connection.execute(
+    `UPDATE remittances
+     SET expected_amount = ?
+     WHERE organization_id = ?
+       AND id = ?`,
+    [
+      expectedAmount,
+      organizationId,
+      remittanceId,
+    ]
+  );
+}
+
+async function submitRemittance(
+  connection,
+  organizationId,
+  remittanceId
+) {
+  await connection.execute(
+    `UPDATE remittances
+     SET
+       status = 'SUBMITTED',
+       submitted_at = NOW()
+     WHERE organization_id = ?
+       AND id = ?`,
+    [
+      organizationId,
+      remittanceId,
+    ]
+  );
+}
+
 async function verifyRemittance(
   connection,
   organizationId,
   remittanceId,
   verifiedBy,
-  verifiedAmount,
-  discrepancyAmount,
   status
 ) {
   await connection.execute(
     `UPDATE remittances
      SET
-       verified_amount = ?,
-       discrepancy_amount = ?,
        status = ?,
        verified_by = ?,
        verified_at = NOW()
      WHERE organization_id = ?
        AND id = ?`,
     [
-      verifiedAmount,
-      discrepancyAmount,
       status,
       verifiedBy,
       organizationId,
       remittanceId,
+    ]
+  );
+}
+
+async function createReconciliation(
+  connection,
+  {
+    organizationId,
+    remittanceId,
+    expectedAmount,
+    actualAmount,
+    status,
+    notes,
+  }
+) {
+  const [result] = await connection.execute(
+    `INSERT INTO reconciliations (
+      organization_id,
+      remittance_id,
+      expected_amount,
+      actual_amount,
+      status,
+      notes
+    )
+    VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      organizationId,
+      remittanceId,
+      expectedAmount,
+      actualAmount,
+      status,
+      notes || null,
+    ]
+  );
+
+  return result.insertId;
+}
+
+async function createAuditEvent(
+  connection,
+  {
+    organizationId,
+    actorId,
+    action,
+    entityType,
+    entityId,
+    oldValues,
+    newValues,
+  }
+) {
+  await connection.execute(
+    `INSERT INTO audit_events (
+      organization_id,
+      actor_id,
+      action,
+      entity_type,
+      entity_id,
+      old_values,
+      new_values
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      organizationId,
+      actorId,
+      action,
+      entityType,
+      entityId,
+      oldValues
+        ? JSON.stringify(oldValues)
+        : null,
+      newValues
+        ? JSON.stringify(newValues)
+        : null,
     ]
   );
 }
@@ -370,14 +680,25 @@ module.exports = {
   createCollection,
   findCollectionById,
   findCollections,
+  findCollectionForUpdate,
   updateCollectionAmount,
+  createTransaction,
+  findTransactionByActivity,
+  findTransactionByReference,
+  updateTransaction,
   createRemittance,
+  findCollectionRemittance,
+  linkRemittanceTransaction,
+  createReview,
   addRemittanceItem,
   findRemittanceById,
   findRemittanceItems,
-  findCollectionForUpdate,
   findRemittanceForUpdate,
   getRemittanceTotal,
+  updateRemittanceExpectedAmount,
+  submitRemittance,
   verifyRemittance,
+  createReconciliation,
+  createAuditEvent,
   markCollectionsReconciled,
 };

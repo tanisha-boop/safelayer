@@ -9,19 +9,17 @@ const validate = require("../middleware/validate");
 const controller = require("../controllers/fieldLedgerController");
 
 const {
-  collectionIdSchema,
-  remittanceIdSchema,
   createCollectionSchema,
   collectPaymentSchema,
   createRemittanceSchema,
   addRemittanceItemSchema,
+  getCollectionSchema,
+  getRemittanceSchema,
+  verifyRemittanceSchema,
+  listCollectionsSchema,
 } = require("../validators/fieldLedgerValidation");
 
 router.use(authenticate);
-
-/*
- * COLLECTIONS
- */
 
 router.post(
   "/collections",
@@ -33,26 +31,23 @@ router.post(
 router.get(
   "/collections",
   authorize("transactions:read"),
+  validate(listCollectionsSchema),
   controller.listCollections
 );
 
 router.get(
   "/collections/:id",
   authorize("transactions:read"),
-  validate(collectionIdSchema),
+  validate(getCollectionSchema),
   controller.getCollection
 );
 
 router.patch(
   "/collections/:id/collect",
-  authorize("transactions:update"),
+  authorize("transactions:create"),
   validate(collectPaymentSchema),
   controller.collectPayment
 );
-
-/*
- * REMITTANCES
- */
 
 router.post(
   "/remittances",
@@ -64,7 +59,7 @@ router.post(
 router.get(
   "/remittances/:id",
   authorize("remittances:read"),
-  validate(remittanceIdSchema),
+  validate(getRemittanceSchema),
   controller.getRemittance
 );
 
@@ -72,14 +67,13 @@ router.post(
   "/remittances/:id/items",
   authorize("remittances:create"),
   validate(addRemittanceItemSchema),
-  validate(remittanceIdSchema),
   controller.addRemittanceItem
 );
 
 router.post(
   "/remittances/:id/verify",
   authorize("remittances:verify"),
-  validate(remittanceIdSchema),
+  validate(verifyRemittanceSchema),
   controller.verifyRemittance
 );
 

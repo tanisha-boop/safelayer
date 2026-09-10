@@ -14,6 +14,7 @@ const evidenceRoutes = require("./routes/evidenceRoutes");
 const routeProofRoutes = require("./routes/routeProofRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
 const userManagementRoutes = require("./routes/userManagementRoutes");
+const fieldLedgerRoutes = require("./routes/fieldLedgerRoutes");
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/evidence", evidenceRoutes);
 app.use("/api/route-proof", routeProofRoutes);
 app.use("/api/organization", organizationRoutes);
 app.use("/api/users", userManagementRoutes);
+app.use("/api/field-ledger", fieldLedgerRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
