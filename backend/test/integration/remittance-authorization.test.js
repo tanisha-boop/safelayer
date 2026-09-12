@@ -310,6 +310,63 @@ test.before(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
+
+test(
+  "unauthenticated user cannot verify a remittance",
+  async () => {
+    const reference = `AUTO-AUTH-UNAUTH-${Date.now()}`;
+
+    const {
+      remittanceId,
+      transactionId,
+      collectionId,
+    } = await createTestRemittance(
+      reference,
+      "PENDING"
+    );
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/field-ledger/remittances/${remittanceId}/verify`,
+        {
+          method: "POST",
+        }
+      );
+
+      assert.equal(response.status, 401);
+
+      const body = await response.json();
+
+      assert.equal(body.success, false);
+      assert.equal(body.message, "Authentication required");
+
+      const remittance =
+        await getRemittance(remittanceId);
+
+      assert.equal(
+        remittance.status,
+        "PENDING"
+      );
+
+      assert.equal(
+        await countReconciliations(remittanceId),
+        0
+      );
+
+      assert.equal(
+        await countReviewsForTransaction(transactionId),
+        0
+      );
+    } finally {
+      await deleteTestRemittance(
+        remittanceId,
+        transactionId,
+        collectionId
+      );
+    }
+  }
+);
+
 test.after(async () => {
   await new Promise((resolve, reject) => {
     server.close((error) => {
