@@ -96,6 +96,31 @@ async function getReview(connection, reviewId) {
   return rows[0] || null;
 }
 
+async function getReviewAudits(connection, reviewId) {
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        organization_id,
+        actor_id,
+        action,
+        entity_type,
+        entity_id,
+        old_values,
+        new_values
+      FROM audit_events
+      WHERE organization_id = ?
+        AND entity_type = 'REVIEW'
+        AND entity_id = ?
+        AND action IN ('REVIEW_CREATED', 'REVIEW_UPDATED')
+      ORDER BY id ASC
+    `,
+    [TEST_ORG_ID, reviewId]
+  );
+
+  return rows;
+}
+
 async function countReviewAudits(connection, reviewId) {
   const [rows] = await connection.execute(
     `
@@ -603,6 +628,207 @@ test(
           reviewId
         ),
         1
+      );
+    } finally {
+      await cleanup(
+        connection,
+        transactionId,
+        reviewId
+      );
+
+      connection.release();
+    }
+  }
+);
+
+test(
+  "review audit events preserve actor, entity, and state transition data",
+  async () => {
+    const connection = await pool.getConnection();
+
+    let transactionId;
+    let reviewId;
+
+    try {
+      const transaction =
+        await createTransactionFixture(
+          connection,
+          "AUDIT-PAYLOAD"
+        );
+
+      transactionId = transaction.id;
+
+      const review =
+        await createReviewFixture(
+          connection,
+          transactionId,
+          "AUDIT-PAYLOAD"
+        );
+
+      reviewId = review.id;
+
+      const createdAudits =
+        await getReviewAudits(
+          connection,
+          reviewId
+        );
+
+      assert.equal(createdAudits.length, 1);
+
+      const createdAudit = createdAudits[0];
+
+      assert.equal(
+        createdAudit.organization_id,
+        TEST_ORG_ID
+      );
+
+      assert.equal(
+        createdAudit.actor_id,
+        TEST_ACTOR_ID
+      );
+
+      assert.equal(
+        createdAudit.action,
+        "REVIEW_CREATED"
+      );
+
+      assert.equal(
+        createdAudit.entity_type,
+        "REVIEW"
+      );
+
+      assert.equal(
+        Number(createdAudit.entity_id),
+        Number(reviewId)
+      );
+
+      assert.equal(
+        createdAudit.old_values,
+        null
+      );
+
+      const createdNewValues =
+        typeof createdAudit.new_values === "string"
+          ? JSON.parse(createdAudit.new_values)
+          : createdAudit.new_values;
+
+      assert.equal(
+        createdNewValues.status,
+        "OPEN"
+      );
+
+      assert.equal(
+        createdNewValues.priority,
+        "HIGH"
+      );
+
+      assert.equal(
+        createdNewValues.transactionId,
+        transactionId
+      );
+
+      assert.equal(
+        createdNewValues.activityId,
+        null
+      );
+
+      assert.equal(
+        createdNewValues.invoiceId,
+        null
+      );
+
+      assert.equal(
+        createdNewValues.riskAssessmentId,
+        null
+      );
+
+      assert.equal(
+        createdNewValues.reason,
+        "Automated integration test AUDIT-PAYLOAD"
+      );
+
+      await reviewService.updateReview({
+        organizationId: TEST_ORG_ID,
+        reviewId,
+        actorId: TEST_ACTOR_ID,
+        status: "APPROVED",
+        resolution:
+          "Audit payload approval test.",
+      });
+
+      const updatedAudits =
+        await getReviewAudits(
+          connection,
+          reviewId
+        );
+
+      assert.equal(updatedAudits.length, 2);
+
+      const updatedAudit = updatedAudits[1];
+
+      assert.equal(
+        updatedAudit.organization_id,
+        TEST_ORG_ID
+      );
+
+      assert.equal(
+        updatedAudit.actor_id,
+        TEST_ACTOR_ID
+      );
+
+      assert.equal(
+        updatedAudit.action,
+        "REVIEW_UPDATED"
+      );
+
+      assert.equal(
+        updatedAudit.entity_type,
+        "REVIEW"
+      );
+
+      assert.equal(
+        Number(updatedAudit.entity_id),
+        Number(reviewId)
+      );
+
+      const oldValues =
+        typeof updatedAudit.old_values === "string"
+          ? JSON.parse(updatedAudit.old_values)
+          : updatedAudit.old_values;
+
+      const newValues =
+        typeof updatedAudit.new_values === "string"
+          ? JSON.parse(updatedAudit.new_values)
+          : updatedAudit.new_values;
+
+      assert.equal(
+        oldValues.status,
+        "OPEN"
+      );
+
+      assert.equal(
+        oldValues.assignedTo,
+        null
+      );
+
+      assert.equal(
+        oldValues.resolution,
+        null
+      );
+
+      assert.equal(
+        newValues.status,
+        "APPROVED"
+      );
+
+      assert.equal(
+        newValues.assignedTo,
+        null
+      );
+
+      assert.equal(
+        newValues.resolution,
+        "Audit payload approval test."
       );
     } finally {
       await cleanup(
