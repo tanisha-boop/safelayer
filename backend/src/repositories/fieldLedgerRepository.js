@@ -264,22 +264,40 @@ async function updateTransaction(
     status,
   }
 ) {
+  const fields = [];
+  const values = [];
+
+  if (amount !== undefined) {
+    fields.push("amount = ?");
+    values.push(amount);
+  }
+
+  if (transactionDate !== undefined) {
+    fields.push("transaction_date = ?");
+    values.push(transactionDate);
+  }
+
+  if (status !== undefined) {
+    fields.push("status = ?");
+    values.push(status);
+  }
+
+  if (fields.length === 0) {
+    throw new Error("No transaction fields provided for update.");
+  }
+
+  values.push(
+    organizationId,
+    transactionId
+  );
+
   await connection.execute(
     `UPDATE transactions
-     SET
-       amount = ?,
-       transaction_date = ?,
-       status = ?
+     SET ${fields.join(", ")}
      WHERE organization_id = ?
        AND id = ?
        AND transaction_type = 'COLLECTION'`,
-    [
-      amount,
-      transactionDate,
-      status,
-      organizationId,
-      transactionId,
-    ]
+    values
   );
 }
 
@@ -360,41 +378,6 @@ async function linkRemittanceTransaction(
       transactionId,
     ]
   );
-}
-
-async function createReview(
-  connection,
-  {
-    organizationId,
-    activityId,
-    transactionId,
-    assignedTo,
-    priority,
-    reason,
-  }
-) {
-  const [result] = await connection.execute(
-    `INSERT INTO reviews (
-      organization_id,
-      activity_id,
-      transaction_id,
-      assigned_to,
-      status,
-      priority,
-      reason
-    )
-    VALUES (?, ?, ?, ?, 'OPEN', ?, ?)`,
-    [
-      organizationId,
-      activityId || null,
-      transactionId || null,
-      assignedTo || null,
-      priority,
-      reason,
-    ]
-  );
-
-  return result.insertId;
 }
 
 async function addRemittanceItem(
@@ -689,7 +672,6 @@ module.exports = {
   createRemittance,
   findCollectionRemittance,
   linkRemittanceTransaction,
-  createReview,
   addRemittanceItem,
   findRemittanceById,
   findRemittanceItems,

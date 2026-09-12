@@ -3,6 +3,9 @@ const pool = require("../config/database");
 const fieldLedgerRepository =
   require("../repositories/fieldLedgerRepository");
 
+const reviewService =
+  require("./reviewService");
+
 const activityRepository =
   require("../repositories/activityRepository");
 
@@ -742,28 +745,36 @@ async function verifyRemittance(
       const linkedTransaction =
         transactionRows[0] || null;
 
-      await fieldLedgerRepository.createReview(
+      if (!linkedTransaction) {
+        throw new Error(
+          "Cannot create remittance variance review without a linked transaction."
+        );
+      }
+
+      await fieldLedgerRepository.updateTransaction(
         connection,
+        organizationId,
+        linkedTransaction.id,
         {
-          organizationId,
-          activityId:
-            linkedTransaction?.activity_id ||
-            null,
-          transactionId:
-            linkedTransaction?.id ||
-            null,
-          assignedTo: null,
-          priority:
-            Math.abs(variance) >= 1000
-              ? "CRITICAL"
-              : "HIGH",
-          reason:
-            `Remittance variance detected. ` +
-            `Expected ${expectedAmount.toFixed(2)} PHP, ` +
-            `actual ${actualAmount.toFixed(2)} PHP, ` +
-            `variance ${variance.toFixed(2)} PHP.`,
+          status: "REQUIRES_REVIEW",
         }
       );
+
+      await reviewService.createReview({
+        organizationId,
+        actorId: currentUser.id,
+        transactionId: linkedTransaction.id,
+        priority:
+          Math.abs(variance) >= 1000
+            ? "CRITICAL"
+            : "HIGH",
+        reason:
+          `Remittance variance detected. ` +
+          `Expected ${expectedAmount.toFixed(2)} PHP, ` +
+          `actual ${actualAmount.toFixed(2)} PHP, ` +
+          `variance ${variance.toFixed(2)} PHP.`,
+        connection,
+      });
     }
 
     await fieldLedgerRepository.createAuditEvent(

@@ -4,3 +4,4 @@ uploads/*
 !uploads/.gitkeep
 coverage/
 .DS_Store
+cookies.txt

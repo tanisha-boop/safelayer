@@ -194,6 +194,7 @@ async function findOpenReviewByEntity({
   activityId,
   invoiceId,
   transactionId,
+  connection = pool,
 }) {
   const entityIds = [
     activityId,
@@ -234,7 +235,7 @@ async function findOpenReviewByEntity({
     values.push(transactionId);
   }
 
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         r.id,

@@ -9,6 +9,9 @@ const userRepository =
 const invoiceRepository =
   require("../repositories/invoiceRepository");
 
+const transactionRepository =
+  require("../repositories/transactionRepository");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -24,6 +27,7 @@ async function createReview({
   riskAssessmentId,
   priority,
   reason,
+  connection = pool,
 }) {
   const entityCount = [
     activityId,
@@ -58,6 +62,7 @@ async function createReview({
       activityId,
       invoiceId,
       transactionId,
+      connection,
     });
 
   if (existingOpenReview) {
@@ -91,7 +96,7 @@ async function createReview({
 
   const placeholders = values.map(() => "?").join(", ");
 
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `
       INSERT INTO reviews (
         ${fields.join(", ")}
@@ -104,7 +109,8 @@ async function createReview({
   const created =
     await reviewRepository.findById(
       organizationId,
-      result.insertId
+      result.insertId,
+      connection
     );
 
   if (!created) {
@@ -114,7 +120,7 @@ async function createReview({
     );
   }
 
-  await pool.execute(
+  await connection.execute(
     `
       INSERT INTO audit_events (
         organization_id,
@@ -294,16 +300,27 @@ async function updateReview({
       );
 
     /*
-     * Synchronize the linked invoice
-     * inside the same database transaction.
+     * Synchronize the linked entity inside
+     * the same database transaction.
+     *
+     * APPROVED  -> entity becomes trusted/confirmed
+     * REJECTED  -> entity becomes rejected/voided
+     * ESCALATED -> entity remains under review
+     */
+    const terminalDecisionStatuses = [
+      "APPROVED",
+      "REJECTED",
+      "ESCALATED",
+    ];
+
+    let entitySynchronized = false;
+
+    /*
+     * Invoice synchronization.
      */
     if (
       updated.invoice_id &&
-      [
-        "APPROVED",
-        "REJECTED",
-        "ESCALATED",
-      ].includes(updated.status)
+      terminalDecisionStatuses.includes(updated.status)
     ) {
       const invoiceStatusMap = {
         APPROVED: "VERIFIED",
@@ -311,21 +328,45 @@ async function updateReview({
         ESCALATED: "REQUIRES_REVIEW",
       };
 
-      const invoiceStatus =
-        invoiceStatusMap[updated.status];
-
       await invoiceRepository.updateStatus(
         organizationId,
         updated.invoice_id,
-        invoiceStatus,
+        invoiceStatusMap[updated.status],
         connection
       );
 
-      /*
-       * Reload through the same transaction
-       * connection so the response reflects
-       * the invoice state before COMMIT.
-       */
+      entitySynchronized = true;
+    }
+
+    /*
+     * Transaction synchronization.
+     */
+    if (
+      updated.transaction_id &&
+      terminalDecisionStatuses.includes(updated.status)
+    ) {
+      const transactionStatusMap = {
+        APPROVED: "CONFIRMED",
+        REJECTED: "VOIDED",
+        ESCALATED: "REQUIRES_REVIEW",
+      };
+
+      await transactionRepository.updateStatus(
+        organizationId,
+        updated.transaction_id,
+        transactionStatusMap[updated.status],
+        connection
+      );
+
+      entitySynchronized = true;
+    }
+
+    /*
+     * Reload through the same transaction connection
+     * so the response reflects the synchronized
+     * entity state before COMMIT.
+     */
+    if (entitySynchronized) {
       updated =
         await reviewRepository.findById(
           organizationId,
