@@ -87,6 +87,86 @@ async function getAuditRow(auditId) {
   return rows[0] || null;
 }
 
+async function createAuditFixtureSet() {
+  const auditIds = [];
+
+  const fixtures = [
+    {
+      action: "AUDIT_FILTER_ACTION_A",
+      entityType: "FILTER_ENTITY_A",
+      entityId: 111111,
+      actorId: OWNER_ID,
+    },
+    {
+      action: "AUDIT_FILTER_ACTION_A",
+      entityType: "FILTER_ENTITY_B",
+      entityId: 222222,
+      actorId: OWNER_ID,
+    },
+    {
+      action: "AUDIT_FILTER_ACTION_B",
+      entityType: "FILTER_ENTITY_A",
+      entityId: 111111,
+      actorId: OWNER_ID,
+    },
+    {
+      action: "AUDIT_FILTER_ACTION_C",
+      entityType: "FILTER_ENTITY_C",
+      entityId: 333333,
+      actorId: FIELD_WORKER_ID,
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const [result] = await pool.execute(
+      `
+        INSERT INTO audit_events (
+          organization_id,
+          actor_id,
+          action,
+          entity_type,
+          entity_id,
+          old_values,
+          new_values,
+          ip_address,
+          user_agent
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        ORGANIZATION_ID,
+        fixture.actorId,
+        fixture.action,
+        fixture.entityType,
+        fixture.entityId,
+        JSON.stringify({
+          test: "before",
+        }),
+        JSON.stringify({
+          test: "after",
+        }),
+        "127.0.0.1",
+        "SafeLayer filter integration test",
+      ]
+    );
+
+    auditIds.push(result.insertId);
+  }
+
+  return auditIds;
+}
+
+async function cleanupAuditFixtureSet() {
+  await pool.execute(
+    `
+      DELETE FROM audit_events
+      WHERE organization_id = ?
+        AND action LIKE 'AUDIT_FILTER_ACTION_%'
+    `,
+    [ORGANIZATION_ID]
+  );
+}
+
 async function cleanupAuditFixture(auditId) {
   if (!auditId) {
     return;
@@ -418,5 +498,412 @@ test(
       Number(rows[0].count),
       0
     );
+  }
+);
+
+test(
+  "audit list filters by action",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.ok(Array.isArray(body.data));
+      assert.equal(body.pagination.total, 2);
+
+      for (const event of body.data) {
+        assert.equal(
+          event.action,
+          "AUDIT_FILTER_ACTION_A"
+        );
+      }
+
+      const returnedIds = body.data.map(
+        (event) => event.id
+      );
+
+      assert.deepEqual(
+        returnedIds.sort((a, b) => a - b),
+        [auditIds[0], auditIds[1]].sort(
+          (a, b) => a - b
+        )
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
+  }
+);
+
+test(
+  "audit list filters by entity type",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?entityType=FILTER_ENTITY_A`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.equal(body.pagination.total, 2);
+
+      for (const event of body.data) {
+        assert.equal(
+          event.entityType,
+          "FILTER_ENTITY_A"
+        );
+      }
+
+      const returnedIds = body.data.map(
+        (event) => event.id
+      );
+
+      assert.deepEqual(
+        returnedIds.sort((a, b) => a - b),
+        [auditIds[0], auditIds[2]].sort(
+          (a, b) => a - b
+        )
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
+  }
+);
+
+test(
+  "audit list filters by entity ID",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?entityId=111111`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.equal(body.pagination.total, 2);
+
+      for (const event of body.data) {
+        assert.equal(event.entityId, 111111);
+      }
+
+      const returnedIds = body.data.map(
+        (event) => event.id
+      );
+
+      assert.deepEqual(
+        returnedIds.sort((a, b) => a - b),
+        [auditIds[0], auditIds[2]].sort(
+          (a, b) => a - b
+        )
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
+  }
+);
+
+test(
+  "audit list combines multiple filters",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&entityType=FILTER_ENTITY_B`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.equal(body.pagination.total, 1);
+      assert.equal(body.data.length, 1);
+
+      assert.equal(
+        body.data[0].id,
+        auditIds[1]
+      );
+
+      assert.equal(
+        body.data[0].action,
+        "AUDIT_FILTER_ACTION_A"
+      );
+
+      assert.equal(
+        body.data[0].entityType,
+        "FILTER_ENTITY_B"
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
+  }
+);
+
+test(
+  "audit list supports pagination",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&limit=1&page=1`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.equal(body.pagination.page, 1);
+      assert.equal(body.pagination.limit, 1);
+      assert.equal(body.pagination.total, 2);
+      assert.equal(body.pagination.totalPages, 2);
+      assert.equal(body.data.length, 1);
+
+      assert.equal(
+        body.data[0].id,
+        auditIds[1]
+      );
+
+      const secondResponse = await fetch(
+        `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&limit=1&page=2`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(secondResponse.status, 200);
+
+      const secondBody =
+        await secondResponse.json();
+
+      assert.equal(
+        secondBody.pagination.page,
+        2
+      );
+
+      assert.equal(
+        secondBody.pagination.total,
+        2
+      );
+
+      assert.equal(
+        secondBody.pagination.totalPages,
+        2
+      );
+
+      assert.equal(
+        secondBody.data.length,
+        1
+      );
+
+      assert.equal(
+        secondBody.data[0].id,
+        auditIds[0]
+      );
+
+      assert.notEqual(
+        body.data[0].id,
+        secondBody.data[0].id
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
+  }
+);
+
+test(
+  "audit list rejects an invalid page",
+  async () => {
+    const response = await fetch(
+      `${baseUrl}/api/audit-events?page=0`,
+      {
+        headers: {
+          Cookie: createAuthCookie(
+            OWNER_ID,
+            ORGANIZATION_ID,
+            ["OWNER"]
+          ),
+        },
+      }
+    );
+
+    assert.equal(response.status, 400);
+
+    const body = await response.json();
+
+    assert.equal(body.success, false);
+  }
+);
+
+test(
+  "audit list rejects a limit greater than 100",
+  async () => {
+    const response = await fetch(
+      `${baseUrl}/api/audit-events?limit=101`,
+      {
+        headers: {
+          Cookie: createAuthCookie(
+            OWNER_ID,
+            ORGANIZATION_ID,
+            ["OWNER"]
+          ),
+        },
+      }
+    );
+
+    assert.equal(response.status, 400);
+
+    const body = await response.json();
+
+    assert.equal(body.success, false);
+  }
+);
+
+test(
+  "audit filter fixture cleanup leaves no test events behind",
+  async () => {
+    const [rows] = await pool.execute(
+      `
+        SELECT COUNT(*) AS count
+        FROM audit_events
+        WHERE organization_id = ?
+          AND action LIKE 'AUDIT_FILTER_ACTION_%'
+      `,
+      [ORGANIZATION_ID]
+    );
+
+    assert.equal(
+      Number(rows[0].count),
+      0
+    );
+  }
+);
+
+test(
+  "audit list filters by actor ID",
+  async () => {
+    let auditIds = [];
+
+    try {
+      auditIds = await createAuditFixtureSet();
+
+      const response = await fetch(
+        `${baseUrl}/api/audit-events?actorId=${FIELD_WORKER_ID}`,
+        {
+          headers: {
+            Cookie: createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+      assert.equal(body.pagination.total, 1);
+      assert.equal(body.data.length, 1);
+
+      assert.equal(
+        body.data[0].id,
+        auditIds[3]
+      );
+
+      assert.equal(
+        body.data[0].actorId,
+        FIELD_WORKER_ID
+      );
+
+      assert.equal(
+        body.data[0].action,
+        "AUDIT_FILTER_ACTION_C"
+      );
+    } finally {
+      await cleanupAuditFixtureSet();
+    }
   }
 );
