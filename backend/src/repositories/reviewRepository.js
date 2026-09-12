@@ -124,8 +124,12 @@ async function findReviews({
   };
 }
 
-async function findById(organizationId, reviewId) {
-  const [rows] = await pool.execute(
+async function findById(
+  organizationId,
+  reviewId,
+  connection = pool
+) {
+  const [rows] = await connection.execute(
     `
       SELECT
         r.id,
@@ -263,6 +267,7 @@ async function updateReview({
   status,
   assignedTo,
   resolution,
+  connection = pool,
 }) {
   const fields = [];
   const values = [];
@@ -297,7 +302,7 @@ async function updateReview({
 
   values.push(organizationId, reviewId);
 
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `
       UPDATE reviews
       SET ${fields.join(", ")}

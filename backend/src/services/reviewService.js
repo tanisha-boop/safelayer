@@ -235,7 +235,8 @@ async function updateReview({
     );
   }
 
-  // Validate the assignee if one was supplied.
+  // Validate the assignee before opening
+  // the transaction.
   if (
     assignedTo !== undefined &&
     assignedTo !== null
@@ -262,76 +263,95 @@ async function updateReview({
     }
   }
 
-  const affected =
-    await reviewRepository.updateReview({
-      organizationId,
-      reviewId,
-      status,
-      assignedTo,
-      resolution,
-    });
+  const connection =
+    await pool.getConnection();
 
-  if (!affected) {
-    throw createError(
-      "Review could not be updated.",
-      409
-    );
-  }
+  try {
+    await connection.beginTransaction();
 
-  let updated =
-    await reviewRepository.findById(
-      organizationId,
-      reviewId
-    );
+    const affected =
+      await reviewRepository.updateReview({
+        organizationId,
+        reviewId,
+        status,
+        assignedTo,
+        resolution,
+        connection,
+      });
 
-  /*
-   * Synchronize the linked invoice when
-   * the review reaches a final decision.
-   */
-  if (
-    updated.invoice_id &&
-    [
-      "APPROVED",
-      "REJECTED",
-      "ESCALATED",
-    ].includes(updated.status)
-  ) {
-    const invoiceStatusMap = {
-      APPROVED: "VERIFIED",
-      REJECTED: "REJECTED",
-      ESCALATED: "REQUIRES_REVIEW",
-    };
+    if (!affected) {
+      throw createError(
+        "Review could not be updated.",
+        409
+      );
+    }
 
-    const invoiceStatus =
-      invoiceStatusMap[updated.status];
-
-    await invoiceRepository.updateStatus(
-      organizationId,
-      updated.invoice_id,
-      invoiceStatus
-    );
-
-    /*
-     * Reload the review after synchronizing
-     * the linked invoice so the response contains
-     * the current entity status.
-     */
-    updated =
+    let updated =
       await reviewRepository.findById(
         organizationId,
-        reviewId
+        reviewId,
+        connection
       );
+
+    /*
+     * Synchronize the linked invoice
+     * inside the same database transaction.
+     */
+    if (
+      updated.invoice_id &&
+      [
+        "APPROVED",
+        "REJECTED",
+        "ESCALATED",
+      ].includes(updated.status)
+    ) {
+      const invoiceStatusMap = {
+        APPROVED: "VERIFIED",
+        REJECTED: "REJECTED",
+        ESCALATED: "REQUIRES_REVIEW",
+      };
+
+      const invoiceStatus =
+        invoiceStatusMap[updated.status];
+
+      await invoiceRepository.updateStatus(
+        organizationId,
+        updated.invoice_id,
+        invoiceStatus,
+        connection
+      );
+
+      /*
+       * Reload through the same transaction
+       * connection so the response reflects
+       * the invoice state before COMMIT.
+       */
+      updated =
+        await reviewRepository.findById(
+          organizationId,
+          reviewId,
+          connection
+        );
+    }
+
+    await createReviewAudit({
+      organizationId,
+      actorId,
+      reviewId,
+      existing,
+      updated,
+      connection,
+    });
+
+    await connection.commit();
+
+    return formatReview(updated);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
-
-  await createReviewAudit({
-    organizationId,
-    actorId,
-    reviewId,
-    existing,
-    updated,
-  });
-
-  return formatReview(updated);
 }
 
 async function createReviewAudit({
@@ -340,8 +360,9 @@ async function createReviewAudit({
   reviewId,
   existing,
   updated,
+  connection = pool,
 }) {
-  await pool.execute(
+  await connection.execute(
     `
       INSERT INTO audit_events
         (

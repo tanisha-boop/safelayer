@@ -175,9 +175,10 @@ async function listInvoices(
 async function updateStatus(
   organizationId,
   invoiceId,
-  status
+  status,
+  connection = pool
 ) {
-  await pool.execute(
+  await connection.execute(
     `
       UPDATE invoices
 
@@ -193,10 +194,34 @@ async function updateStatus(
     ]
   );
 
-  return findById(
-    organizationId,
-    invoiceId
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        organization_id,
+        activity_id,
+        vendor_name,
+        invoice_number,
+        invoice_date,
+        due_date,
+        amount,
+        currency,
+        status,
+        submitted_by,
+        created_at,
+        updated_at
+      FROM invoices
+      WHERE organization_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    [
+      organizationId,
+      invoiceId,
+    ]
   );
+
+  return rows[0] || null;
 }
 
 async function findDuplicateCandidates(
