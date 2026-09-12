@@ -52,6 +52,21 @@ async function createReview({
     );
   }
 
+  const existingOpenReview =
+    await reviewRepository.findOpenReviewByEntity({
+      organizationId,
+      activityId,
+      invoiceId,
+      transactionId,
+    });
+
+  if (existingOpenReview) {
+    throw createError(
+      "An active review already exists for this entity.",
+      409
+    );
+  }
+
   const fields = [
     "organization_id",
     "activity_id",
@@ -263,59 +278,61 @@ async function updateReview({
     );
   }
 
-const updated =
-  await reviewRepository.findById(
+  let updated =
+    await reviewRepository.findById(
+      organizationId,
+      reviewId
+    );
+
+  /*
+   * Synchronize the linked invoice when
+   * the review reaches a final decision.
+   */
+  if (
+    updated.invoice_id &&
+    [
+      "APPROVED",
+      "REJECTED",
+      "ESCALATED",
+    ].includes(updated.status)
+  ) {
+    const invoiceStatusMap = {
+      APPROVED: "VERIFIED",
+      REJECTED: "REJECTED",
+      ESCALATED: "REQUIRES_REVIEW",
+    };
+
+    const invoiceStatus =
+      invoiceStatusMap[updated.status];
+
+    await invoiceRepository.updateStatus(
+      organizationId,
+      updated.invoice_id,
+      invoiceStatus
+    );
+
+    /*
+     * Reload the review after synchronizing
+     * the linked invoice so the response contains
+     * the current entity status.
+     */
+    updated =
+      await reviewRepository.findById(
+        organizationId,
+        reviewId
+      );
+  }
+
+  await createReviewAudit({
     organizationId,
-    reviewId
-  );
+    actorId,
+    reviewId,
+    existing,
+    updated,
+  });
 
-/*
- * Synchronize the linked invoice when
- * the review reaches a final decision.
- */
-if (
-  updated.invoice_id &&
-  [
-    "APPROVED",
-    "REJECTED",
-    "ESCALATED",
-  ].includes(updated.status)
-) {
-  const invoiceStatusMap = {
-    APPROVED: "VERIFIED",
-    REJECTED: "REJECTED",
-    ESCALATED: "REQUIRES_REVIEW",
-  };
-
-  const invoiceStatus =
-    invoiceStatusMap[updated.status];
-
-  await invoiceRepository.updateStatus(
-    organizationId,
-    updated.invoice_id,
-    invoiceStatus
-  );
+  return formatReview(updated);
 }
-
-/*
- * Reload the review after domain synchronization
- * so the response contains the latest linked entity state.
- */
-const refreshed =
-  await reviewRepository.findById(
-    organizationId,
-    reviewId
-  );
-
-await createReviewAudit({
-  organizationId,
-  actorId,
-  reviewId,
-  existing,
-  updated: refreshed,
-});
-
-return formatReview(refreshed);
 
 async function createReviewAudit({
   organizationId,
@@ -431,4 +448,4 @@ module.exports = {
   listReviews,
   getReview,
   updateReview,
-}};
+};

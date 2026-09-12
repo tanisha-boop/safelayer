@@ -184,6 +184,79 @@ async function findById(organizationId, reviewId) {
   return rows[0] || null;
 }
 
+
+async function findOpenReviewByEntity({
+  organizationId,
+  activityId,
+  invoiceId,
+  transactionId,
+}) {
+  const entityIds = [
+    activityId,
+    invoiceId,
+    transactionId,
+  ].filter(
+    (value) => value !== undefined && value !== null
+  );
+
+  if (entityIds.length !== 1) {
+    throw new Error(
+      "Exactly one review entity must be supplied."
+    );
+  }
+
+  const conditions = [
+    "organization_id = ?",
+    "status IN ('OPEN', 'IN_REVIEW')",
+  ];
+
+  const values = [organizationId];
+
+  if (activityId !== undefined && activityId !== null) {
+    conditions.push("activity_id = ?");
+    values.push(activityId);
+  }
+
+  if (invoiceId !== undefined && invoiceId !== null) {
+    conditions.push("invoice_id = ?");
+    values.push(invoiceId);
+  }
+
+  if (
+    transactionId !== undefined &&
+    transactionId !== null
+  ) {
+    conditions.push("transaction_id = ?");
+    values.push(transactionId);
+  }
+
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        r.id,
+        r.organization_id,
+        r.activity_id,
+        r.transaction_id,
+        r.invoice_id,
+        r.risk_assessment_id,
+        r.assigned_to,
+        r.status,
+        r.priority,
+        r.reason,
+        r.resolution,
+        r.created_at,
+        r.resolved_at
+      FROM reviews r
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY r.created_at DESC
+      LIMIT 1
+    `,
+    values
+  );
+
+  return rows[0] || null;
+}
+
 async function updateReview({
   organizationId,
   reviewId,
@@ -241,5 +314,6 @@ async function updateReview({
 module.exports = {
   findReviews,
   findById,
+  findOpenReviewByEntity,
   updateReview,
 };

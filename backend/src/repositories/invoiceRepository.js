@@ -288,118 +288,6 @@ async function createRiskAssessment({
   return result.insertId;
 }
 
-async function createReview({
-  organizationId,
-  invoiceId,
-  riskAssessmentId,
-  priority,
-  reason,
-}) {
-  const [result] = await pool.execute(
-    `
-      INSERT INTO reviews (
-        organization_id,
-        invoice_id,
-        risk_assessment_id,
-        status,
-        priority,
-        reason
-      )
-      VALUES (?, ?, ?, 'OPEN', ?, ?)
-    `,
-    [
-      organizationId,
-      invoiceId,
-      riskAssessmentId,
-      priority,
-      reason,
-    ]
-  );
-
-  return result.insertId;
-}
-
-async function findReviewsByInvoice(
-  organizationId,
-  invoiceId
-) {
-  const [rows] = await pool.execute(
-    `
-      SELECT
-        r.id,
-        r.invoice_id,
-        r.risk_assessment_id,
-        r.assigned_to,
-        r.status,
-        r.priority,
-        r.reason,
-        r.resolution,
-        r.created_at,
-        r.resolved_at,
-
-        u.first_name AS assignee_first_name,
-        u.last_name AS assignee_last_name,
-        u.email AS assignee_email
-
-      FROM reviews r
-
-      LEFT JOIN users u
-        ON u.id = r.assigned_to
-
-      WHERE r.organization_id = ?
-        AND r.invoice_id = ?
-
-      ORDER BY r.created_at DESC
-    `,
-    [
-      organizationId,
-      invoiceId,
-    ]
-  );
-
-  return rows;
-}
-
-async function resolveReview({
-  organizationId,
-  invoiceId,
-  decision,
-  resolution,
-}) {
-  const statusMap = {
-    APPROVE: "APPROVED",
-    REJECT: "REJECTED",
-    ESCALATE: "ESCALATED",
-  };
-
-  const status = statusMap[decision];
-
-  const [result] = await pool.execute(
-    `
-      UPDATE reviews
-
-      SET
-        status = ?,
-        resolution = ?,
-        resolved_at = NOW()
-
-      WHERE organization_id = ?
-        AND invoice_id = ?
-        AND status IN ('OPEN', 'IN_REVIEW')
-      ORDER BY created_at DESC
-      LIMIT 1
-    `,
-    [
-      status,
-      resolution || null,
-      organizationId,
-      invoiceId,
-    ]
-  );
-
-  return result.affectedRows;
-}
-
 async function findLatestRiskAssessment(
   activityId
 ) {
@@ -527,9 +415,6 @@ module.exports = {
   updateStatus,
   findDuplicateCandidates,
   createRiskAssessment,
-  createReview,
-  findReviewsByInvoice,
-  resolveReview,
   findLatestRiskAssessment,
   createAuditEvent,
   findEvidenceForInvoice,
