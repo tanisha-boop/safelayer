@@ -1,6 +1,9 @@
 const invoiceRepository =
   require("../repositories/invoiceRepository");
 
+const reviewService =
+  require("./reviewService");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -207,10 +210,18 @@ async function getInvoice(
       invoiceId
     );
 
-  const reviews =
-    await invoiceRepository.findReviewsByInvoice(
+  const reviewResult =
+    await reviewService.listReviews({
       organizationId,
-      invoiceId
+      entityType: "INVOICE",
+      page: 1,
+      limit: 100,
+    });
+
+  const reviews =
+    reviewResult.reviews.filter(
+      (review) =>
+        review.entity?.id === invoiceId
     );
 
   return {
@@ -318,14 +329,17 @@ async function verifyInvoice({
         ? "CRITICAL"
         : "HIGH";
 
-    reviewId =
-      await invoiceRepository.createReview({
+    const review =
+      await reviewService.createReview({
         organizationId,
+        actorId,
         invoiceId,
         riskAssessmentId,
         priority,
         reason,
       });
+
+    reviewId = review.id;
   }
 
   await invoiceRepository.createAuditEvent({
@@ -397,15 +411,34 @@ async function reviewInvoice({
     );
   }
 
-  const affected =
-    await invoiceRepository.resolveReview({
+  const openReviews =
+    await reviewService.listReviews({
       organizationId,
-      invoiceId,
-      decision,
-      resolution,
+      status: "OPEN",
+      entityType: "INVOICE",
+      page: 1,
+      limit: 100,
     });
 
-  if (!affected) {
+  const inReviewReviews =
+    await reviewService.listReviews({
+      organizationId,
+      status: "IN_REVIEW",
+      entityType: "INVOICE",
+      page: 1,
+      limit: 100,
+    });
+
+  const matchingReview =
+    [
+      ...openReviews.reviews,
+      ...inReviewReviews.reviews,
+    ].find(
+      (review) =>
+        review.entity?.id === invoiceId
+    );
+
+  if (!matchingReview) {
     throw createError(
       "No open review exists for this invoice",
       409
@@ -413,13 +446,38 @@ async function reviewInvoice({
   }
 
   const statusMap = {
+    APPROVE: "APPROVED",
+    REJECT: "REJECTED",
+    ESCALATE: "ESCALATED",
+  };
+
+  const reviewStatus =
+    statusMap[decision];
+
+  if (!reviewStatus) {
+    throw createError(
+      "Invalid review decision",
+      400
+    );
+  }
+
+  await reviewService.updateReview({
+    organizationId,
+    reviewId: matchingReview.id,
+    actorId,
+    status: reviewStatus,
+    resolution:
+      resolution || null,
+  });
+
+  const invoiceStatusMap = {
     APPROVE: "VERIFIED",
     REJECT: "REJECTED",
     ESCALATE: "REQUIRES_REVIEW",
   };
 
   const newStatus =
-    statusMap[decision];
+    invoiceStatusMap[decision];
 
   await invoiceRepository.updateStatus(
     organizationId,
@@ -441,6 +499,8 @@ async function reviewInvoice({
       decision,
       resolution:
         resolution || null,
+      review_id:
+        matchingReview.id,
     },
   });
 

@@ -6,6 +6,9 @@ const reviewRepository =
 const userRepository =
   require("../repositories/userRepository");
 
+const invoiceRepository =
+  require("../repositories/invoiceRepository");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -260,22 +263,59 @@ async function updateReview({
     );
   }
 
-  const updated =
-    await reviewRepository.findById(
-      organizationId,
-      reviewId
-    );
-
-  await createReviewAudit({
+const updated =
+  await reviewRepository.findById(
     organizationId,
-    actorId,
-    reviewId,
-    existing,
-    updated,
-  });
+    reviewId
+  );
 
-  return formatReview(updated);
+/*
+ * Synchronize the linked invoice when
+ * the review reaches a final decision.
+ */
+if (
+  updated.invoice_id &&
+  [
+    "APPROVED",
+    "REJECTED",
+    "ESCALATED",
+  ].includes(updated.status)
+) {
+  const invoiceStatusMap = {
+    APPROVED: "VERIFIED",
+    REJECTED: "REJECTED",
+    ESCALATED: "REQUIRES_REVIEW",
+  };
+
+  const invoiceStatus =
+    invoiceStatusMap[updated.status];
+
+  await invoiceRepository.updateStatus(
+    organizationId,
+    updated.invoice_id,
+    invoiceStatus
+  );
 }
+
+/*
+ * Reload the review after domain synchronization
+ * so the response contains the latest linked entity state.
+ */
+const refreshed =
+  await reviewRepository.findById(
+    organizationId,
+    reviewId
+  );
+
+await createReviewAudit({
+  organizationId,
+  actorId,
+  reviewId,
+  existing,
+  updated: refreshed,
+});
+
+return formatReview(refreshed);
 
 async function createReviewAudit({
   organizationId,
@@ -391,4 +431,4 @@ module.exports = {
   listReviews,
   getReview,
   updateReview,
-};
+}};
