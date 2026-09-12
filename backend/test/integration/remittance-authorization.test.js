@@ -7,7 +7,9 @@ const { generateAccessToken } = require("../../src/utils/jwt");
 
 const OWNER_ID = 1;
 const FIELD_WORKER_ID = 4;
+const CROSS_ORG_OWNER_ID = 3;
 const ORGANIZATION_ID = 1;
+const CROSS_ORG_ORGANIZATION_ID = 4;
 const ACTIVITY_ID = 4;
 
 let server;
@@ -289,10 +291,14 @@ async function deleteTestRemittance(
   }
 }
 
-function createAuthCookie(userId, roles) {
+function createAuthCookie(
+  userId,
+  organizationId,
+  roles
+) {
   const token = generateAccessToken({
     id: userId,
-    organization_id: ORGANIZATION_ID,
+    organization_id: organizationId,
     roles,
   });
 
@@ -367,6 +373,80 @@ test(
   }
 );
 
+
+test(
+  "OWNER from another organization cannot verify a remittance",
+  async () => {
+    const reference = `AUTO-AUTH-CROSS-ORG-${Date.now()}`;
+
+    const {
+      remittanceId,
+      transactionId,
+      collectionId,
+    } = await createTestRemittance(
+      reference,
+      "PENDING"
+    );
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/field-ledger/remittances/${remittanceId}/verify`,
+        {
+          method: "POST",
+          headers: {
+            Cookie: createAuthCookie(
+              CROSS_ORG_OWNER_ID,
+              CROSS_ORG_ORGANIZATION_ID,
+              ["OWNER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 404);
+
+      const body = await response.json();
+
+      assert.equal(body.success, false);
+      assert.equal(body.message, "Remittance not found");
+
+      const remittance =
+        await getRemittance(remittanceId);
+
+      assert.equal(
+        remittance.status,
+        "PENDING"
+      );
+
+      assert.equal(
+        remittance.verified_by,
+        null
+      );
+
+      assert.equal(
+        remittance.verified_at,
+        null
+      );
+
+      assert.equal(
+        await countReconciliations(remittanceId),
+        0
+      );
+
+      assert.equal(
+        await countReviewsForTransaction(transactionId),
+        0
+      );
+    } finally {
+      await deleteTestRemittance(
+        remittanceId,
+        transactionId,
+        collectionId
+      );
+    }
+  }
+);
+
 test.after(async () => {
   await new Promise((resolve, reject) => {
     server.close((error) => {
@@ -412,6 +492,7 @@ test(
           headers: {
             Cookie: createAuthCookie(
               FIELD_WORKER_ID,
+              ORGANIZATION_ID,
               ["FIELD_WORKER"]
             ),
           },
@@ -483,6 +564,7 @@ test(
           headers: {
             Cookie: createAuthCookie(
               OWNER_ID,
+              ORGANIZATION_ID,
               ["OWNER"]
             ),
           },
@@ -548,6 +630,7 @@ test(
           headers: {
             Cookie: createAuthCookie(
               OWNER_ID,
+              ORGANIZATION_ID,
               ["OWNER"]
             ),
           },
