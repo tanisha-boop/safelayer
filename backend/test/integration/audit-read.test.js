@@ -67,6 +67,18 @@ async function createAuditFixture() {
   return result.insertId;
 }
 
+async function assertAuditRowUnchanged(auditId, expected) {
+  const row = await getAuditRow(auditId);
+
+  assert.ok(row);
+  assert.equal(row.id, expected.id);
+  assert.equal(row.organization_id, expected.organization_id);
+  assert.equal(row.actor_id, expected.actor_id);
+  assert.equal(row.action, expected.action);
+  assert.equal(row.entity_type, expected.entity_type);
+  assert.equal(Number(row.entity_id), Number(expected.entity_id));
+}
+
 async function getAuditRow(auditId) {
   const [rows] = await pool.execute(
     `
@@ -194,6 +206,90 @@ test.before(async () => {
 
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
+
+
+test(
+  "audit events are read-only through the API",
+  async () => {
+    const auditId = await createAuditFixture();
+
+    try {
+      const expected = await getAuditRow(auditId);
+
+      assert.ok(expected);
+
+      const mutationRequests = [
+        {
+          method: "POST",
+          body: {
+            action: "AUDIT_MUTATION_TEST",
+            entityType: "TEST_ENTITY",
+            entityId: 999999,
+          },
+        },
+        {
+          method: "PATCH",
+          body: {
+            action: "AUDIT_MUTATION_TEST",
+          },
+        },
+        {
+          method: "DELETE",
+        },
+      ];
+
+      for (const request of mutationRequests) {
+        const response = await fetch(
+          `${baseUrl}/api/audit-events${
+            request.method === "POST"
+              ? ""
+              : `/${auditId}`
+          }`,
+          {
+            method: request.method,
+            headers: {
+              Cookie: createAuthCookie(
+                OWNER_ID,
+                ORGANIZATION_ID,
+                ["OWNER"]
+              ),
+              ...(request.body
+                ? {
+                    "Content-Type": "application/json",
+                  }
+                : {}),
+            },
+            ...(request.body
+              ? {
+                  body: JSON.stringify(request.body),
+                }
+              : {}),
+          }
+        );
+
+        assert.equal(
+          response.status,
+          404,
+          `${request.method} audit mutation should not be exposed`
+        );
+      }
+
+      await assertAuditRowUnchanged(
+        auditId,
+        expected
+      );
+    } finally {
+      await pool.execute(
+        `
+          DELETE FROM audit_events
+          WHERE id = ?
+            AND organization_id = ?
+        `,
+        [auditId, ORGANIZATION_ID]
+      );
+    }
+  }
+);
 
 test.after(async () => {
   await new Promise((resolve, reject) => {
