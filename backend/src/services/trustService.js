@@ -1,6 +1,9 @@
 const trustRepository =
   require("../repositories/trustRepository");
 
+const reviewService =
+  require("./reviewService");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -601,110 +604,114 @@ async function assessActivity({
   activityId,
   actorId,
 }) {
-  const { activity, assessment } =
-    await buildAssessment(
-      organizationId,
-      activityId
-    );
+  const connection = await trustRepository.getConnection();
 
-  const riskAssessmentId =
-    await trustRepository.createRiskAssessment({
-      activityId,
-      trustScore:
-        assessment.trustScore,
-      riskLevel:
-        assessment.riskLevel,
-      locationVerified:
-        assessment.locationVerified,
-      timestampVerified:
-        assessment.timestampVerified,
-      duplicateDetected:
-        assessment.duplicateDetected,
-      documentVerified:
-        assessment.documentVerified,
-      requiresReview:
-        assessment.requiresReview,
-      explanation: assessment,
-    });
+  try {
+    await connection.beginTransaction();
 
-  let reviewId = null;
-
-  if (assessment.requiresReview) {
-    const priority =
-      assessment.riskLevel === "CRITICAL"
-        ? "CRITICAL"
-        : "HIGH";
-
-    const reason =
-      assessment.signals
-        .filter(
-          (signal) =>
-            signal.impact < 0
-        )
-        .map(
-          (signal) =>
-            `${signal.code}: ${signal.message}`
-        )
-        .join(" ");
-
-    const existingReview =
-      await trustRepository.findOpenActivityReview(
+    const { activity, assessment } =
+      await buildAssessment(
         organizationId,
-        activityId
+        activityId,
+        connection
       );
 
-    if (existingReview) {
-      reviewId = existingReview.id;
-    } else {
-      reviewId =
-        await trustRepository.createReview({
-          organizationId,
-          activityId,
-          priority,
-          reason:
-            reason ||
-            "Activity requires trust review.",
-        });
+    const riskAssessmentId =
+      await trustRepository.createRiskAssessment({
+        activityId,
+        trustScore: assessment.trustScore,
+        riskLevel: assessment.riskLevel,
+        locationVerified: assessment.locationVerified,
+        timestampVerified: assessment.timestampVerified,
+        duplicateDetected: assessment.duplicateDetected,
+        documentVerified: assessment.documentVerified,
+        requiresReview: assessment.requiresReview,
+        explanation: assessment,
+        connection,
+      });
+
+    let reviewId = null;
+
+    if (assessment.requiresReview) {
+      const priority =
+        assessment.riskLevel === "CRITICAL"
+          ? "CRITICAL"
+          : "HIGH";
+
+      const reason =
+        assessment.signals
+          .filter(signal => signal.impact < 0)
+          .map(
+            signal =>
+              `${signal.code}: ${signal.message}`
+          )
+          .join(" ");
+
+      const existingReview =
+          await reviewService.findOpenReviewByEntity({
+            organizationId,
+            activityId,
+            connection,
+          });
+
+      if (existingReview) {
+        reviewId = existingReview.id;
+      } else {
+        const review =
+          await reviewService.createReview({
+            organizationId,
+            actorId,
+            activityId,
+            riskAssessmentId,
+            priority,
+            reason:
+              reason ||
+              "Activity requires trust review.",
+            connection,
+          });
+
+        reviewId = review.id;
+      }
     }
-  }
 
-  await trustRepository.createAuditEvent({
-    organizationId,
-    actorId,
-    action: "TRUST_ASSESSMENT_CREATED",
-    entityType: "FIELD_ACTIVITY",
-    entityId: activityId,
-    newValues: {
+    await trustRepository.createAuditEvent({
+      organizationId,
+      actorId,
+      action: "TRUST_ASSESSMENT_CREATED",
+      entityType: "FIELD_ACTIVITY",
+      entityId: activityId,
+      newValues: {
+        riskAssessmentId,
+        trustScore: assessment.trustScore,
+        riskLevel: assessment.riskLevel,
+        requiresReview: assessment.requiresReview,
+        reviewId,
+      },
+      connection,
+    });
+
+    await connection.commit();
+
+    return {
+      activityId: activity.id,
+      activityStatus: activity.status,
+      assignedWorker: {
+        id: activity.worker_id,
+        firstName: activity.worker_first_name,
+        lastName: activity.worker_last_name,
+        email: activity.worker_email,
+        active: Boolean(activity.worker_active),
+      },
       riskAssessmentId,
-      trustScore:
-        assessment.trustScore,
-      riskLevel:
-        assessment.riskLevel,
-      requiresReview:
-        assessment.requiresReview,
       reviewId,
-    },
-  });
-
-  return {
-    activityId: activity.id,
-    activityStatus:
-      activity.status,
-    assignedWorker: {
-      id: activity.worker_id,
-      firstName:
-        activity.worker_first_name,
-      lastName:
-        activity.worker_last_name,
-      email:
-        activity.worker_email,
-      active:
-        Boolean(activity.worker_active),
-    },
-    riskAssessmentId,
-    reviewId,
-    ...assessment,
-  };
+      ...assessment,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getLatestAssessment({

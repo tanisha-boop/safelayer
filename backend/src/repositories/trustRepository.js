@@ -1,5 +1,10 @@
 const pool = require("../config/database");
 
+async function getConnection() {
+  return pool.getConnection();
+}
+
+
 async function findActivityContext(
   organizationId,
   activityId
@@ -257,8 +262,9 @@ async function createRiskAssessment({
   documentVerified,
   requiresReview,
   explanation,
+  connection = pool,
 }) {
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `
       INSERT INTO risk_assessments (
         activity_id,
@@ -290,66 +296,6 @@ async function createRiskAssessment({
   return result.insertId;
 }
 
-async function findOpenActivityReview(
-  organizationId,
-  activityId
-) {
-  const [rows] = await pool.execute(
-    `
-      SELECT
-        id,
-        organization_id,
-        activity_id,
-        transaction_id,
-        invoice_id,
-        risk_assessment_id,
-        status,
-        priority,
-        reason,
-        resolution,
-        created_at,
-        resolved_at
-      FROM reviews
-      WHERE organization_id = ?
-        AND activity_id = ?
-        AND status IN ('OPEN', 'IN_REVIEW')
-      ORDER BY id DESC
-      LIMIT 1
-    `,
-    [organizationId, activityId]
-  );
-
-  return rows[0] || null;
-}
-
-async function createReview({
-  organizationId,
-  activityId,
-  priority,
-  reason,
-}) {
-  const [result] = await pool.execute(
-    `
-      INSERT INTO reviews (
-        organization_id,
-        activity_id,
-        status,
-        priority,
-        reason
-      )
-      VALUES (?, ?, 'OPEN', ?, ?)
-    `,
-    [
-      organizationId,
-      activityId,
-      priority,
-      reason,
-    ]
-  );
-
-  return result.insertId;
-}
-
 async function createAuditEvent({
   organizationId,
   actorId,
@@ -358,8 +304,9 @@ async function createAuditEvent({
   entityId,
   oldValues,
   newValues,
+  connection = pool,
 }) {
-  await pool.execute(
+  await connection.execute(
     `
       INSERT INTO audit_events (
         organization_id,
@@ -389,6 +336,7 @@ async function createAuditEvent({
 }
 
 module.exports = {
+  getConnection,
   findActivityContext,
   findRouteProofEvents,
   findEvidence,
@@ -398,7 +346,5 @@ module.exports = {
   findInvoices,
   findLatestRiskAssessment,
   createRiskAssessment,
-  findOpenActivityReview,
-  createReview,
   createAuditEvent,
 };

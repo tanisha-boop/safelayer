@@ -18,6 +18,22 @@ function createError(message, statusCode) {
   return error;
 }
 
+async function findOpenReviewByEntity({
+  organizationId,
+  activityId,
+  invoiceId,
+  transactionId,
+  connection = pool,
+}) {
+  return reviewRepository.findOpenReviewByEntity({
+    organizationId,
+    activityId,
+    invoiceId,
+    transactionId,
+    connection,
+  });
+}
+
 async function createReview({
   organizationId,
   actorId,
@@ -507,6 +523,7 @@ function formatReview(review) {
 
 module.exports = {
   createReview,
+  findOpenReviewByEntity,
   listReviews,
   getReview,
   updateReview,

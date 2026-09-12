@@ -745,8 +745,8 @@ test(
       );
 
       assert.equal(
-        review.risk_assessment_id,
-        null
+        Number(review.risk_assessment_id),
+        Number(body.data.riskAssessmentId)
       );
 
       assert.equal(
@@ -858,7 +858,7 @@ test(
 );
 
 test(
-  "Trust-created activity review currently bypasses REVIEW_CREATED audit",
+  "Trust-created activity review creates a centralized REVIEW_CREATED audit",
   async () => {
     const connection = await pool.getConnection();
 
@@ -867,7 +867,7 @@ test(
     try {
       activityId = await createActivity(
         connection,
-        "AUDIT-GAP"
+        "AUDIT-CENTRALIZED"
       );
 
       const response = await fetch(
@@ -901,7 +901,71 @@ test(
           connection,
           reviewId
         ),
-        0
+        1
+      );
+
+      const [rows] = await connection.execute(
+        `
+          SELECT
+            actor_id,
+            organization_id,
+            action,
+            entity_type,
+            entity_id,
+            new_values
+          FROM audit_events
+          WHERE action = 'REVIEW_CREATED'
+            AND entity_type = 'REVIEW'
+            AND entity_id = ?
+          ORDER BY id DESC
+          LIMIT 1
+        `,
+        [reviewId]
+      );
+
+      assert.equal(rows.length, 1);
+
+      assert.equal(
+        rows[0].actor_id,
+        OWNER_ID
+      );
+
+      assert.equal(
+        rows[0].organization_id,
+        ORGANIZATION_ID
+      );
+
+      assert.equal(
+        rows[0].action,
+        "REVIEW_CREATED"
+      );
+
+      assert.equal(
+        rows[0].entity_type,
+        "REVIEW"
+      );
+
+      assert.equal(
+        Number(rows[0].entity_id),
+        Number(reviewId)
+      );
+
+      const auditPayload =
+        JSON.parse(rows[0].new_values);
+
+      assert.equal(
+        auditPayload.status,
+        "OPEN"
+      );
+
+      assert.equal(
+        auditPayload.activityId,
+        activityId
+      );
+
+      assert.equal(
+        auditPayload.riskAssessmentId,
+        body.data.riskAssessmentId
       );
     } finally {
       await cleanupActivity(
