@@ -178,6 +178,29 @@ async function countReconciliations(remittanceId) {
   return Number(rows[0].count);
 }
 
+async function countAuditEventsForRemittance(
+  remittanceId,
+  action
+) {
+  const [rows] = await pool.execute(
+    `
+      SELECT COUNT(*) AS count
+      FROM audit_events
+      WHERE organization_id = ?
+        AND entity_type = 'REMITTANCE'
+        AND entity_id = ?
+        AND action = ?
+    `,
+    [
+      ORGANIZATION_ID,
+      remittanceId,
+      action,
+    ]
+  );
+
+  return Number(rows[0].count);
+}
+
 async function countReviewsForTransaction(transactionId) {
   const [rows] = await pool.execute(
     `
@@ -437,6 +460,22 @@ test(
         await countReviewsForTransaction(transactionId),
         0
       );
+
+      assert.equal(
+        await countAuditEventsForRemittance(
+          remittanceId,
+          "REMITTANCE_VERIFIED"
+        ),
+        0
+      );
+
+      assert.equal(
+        await countAuditEventsForRemittance(
+          remittanceId,
+          "REMITTANCE_DISPUTED"
+        ),
+        0
+      );
     } finally {
       await deleteTestRemittance(
         remittanceId,
@@ -598,6 +637,14 @@ test(
         await countReviewsForTransaction(transactionId),
         0
       );
+
+      assert.equal(
+        await countAuditEventsForRemittance(
+          remittanceId,
+          "REMITTANCE_DISPUTED"
+        ),
+        0
+      );
     } finally {
       await deleteTestRemittance(
         remittanceId,
@@ -662,6 +709,14 @@ test(
 
       assert.equal(
         await countReviewsForTransaction(transactionId),
+        0
+      );
+
+      assert.equal(
+        await countAuditEventsForRemittance(
+          remittanceId,
+          "REMITTANCE_VERIFIED"
+        ),
         0
       );
     } finally {
