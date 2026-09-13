@@ -1,0 +1,572 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  CheckCircle2,
+  Clock3,
+  MapPin,
+  Plus,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { api } from "../services/api";
+
+const statusStyles = {
+  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+  IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
+  COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
+};
+
+const statusLabels = {
+  PENDING: "Pending",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+function formatDate(value) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function normalizeActivities(result) {
+  const data = result?.data || result?.activities || result;
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  return [];
+}
+
+export default function FieldOperations() {
+  const [activities, setActivities] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionId, setActionId] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  async function loadActivities() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await api.getActivities();
+      setActivities(normalizeActivities(result));
+    } catch (err) {
+      setError(err.message || "Unable to load activities.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadActivities();
+  }, []);
+
+  const filteredActivities = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return activities.filter((activity) => {
+      const status = activity.status || "";
+
+      const matchesStatus =
+        statusFilter === "ALL" || status === statusFilter;
+
+      const searchable = [
+        activity.title,
+        activity.activityType,
+        activity.description,
+        activity.assignedToName,
+        activity.assigned_to_name,
+        activity.location,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return matchesStatus && (!query || searchable.includes(query));
+    });
+  }, [activities, search, statusFilter]);
+
+  const summary = useMemo(() => {
+    return {
+      total: activities.length,
+      pending: activities.filter((item) => item.status === "PENDING").length,
+      inProgress: activities.filter((item) => item.status === "IN_PROGRESS").length,
+      completed: activities.filter((item) => item.status === "COMPLETED").length,
+    };
+  }, [activities]);
+
+  async function runAction(id, action) {
+    setActionId(id);
+    setError("");
+
+    try {
+      if (action === "start") {
+        await api.startActivity(id);
+      }
+
+      if (action === "complete") {
+        await api.completeActivity(id);
+      }
+
+      if (action === "cancel") {
+        await api.cancelActivity(id);
+      }
+
+      await loadActivities();
+    } catch (err) {
+      setError(err.message || "Unable to update activity.");
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-medium text-slate-500">OPERATIONS</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+            Field Operations
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-500">
+            Manage real field activities from the SafeLayer backend.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+        >
+          <Plus size={17} />
+          New activity
+        </button>
+      </div>
+
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard icon={Activity} label="Total" value={summary.total} />
+        <SummaryCard icon={Clock3} label="Pending" value={summary.pending} />
+        <SummaryCard icon={MapPin} label="In progress" value={summary.inProgress} />
+        <SummaryCard icon={CheckCircle2} label="Completed" value={summary.completed} />
+      </div>
+
+      <div className="mt-7 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-sm">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search activities..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto">
+            {["ALL", "PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(
+              (status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${
+                    statusFilter === status
+                      ? "bg-slate-950 text-white"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {status === "ALL" ? "All" : statusLabels[status]}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="m-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="p-10 text-center text-sm text-slate-500">
+            Loading activities...
+          </div>
+        ) : filteredActivities.length === 0 ? (
+          <div className="p-10 text-center">
+            <Activity className="mx-auto text-slate-300" size={32} />
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              No activities found
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Try another search or status filter.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+                  <th className="px-5 py-4 font-semibold">Activity</th>
+                  <th className="px-5 py-4 font-semibold">Type</th>
+                  <th className="px-5 py-4 font-semibold">Assigned</th>
+                  <th className="px-5 py-4 font-semibold">Status</th>
+                  <th className="px-5 py-4 font-semibold">Scheduled</th>
+                  <th className="px-5 py-4 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredActivities.map((activity) => {
+                  const assigned =
+                    activity.assignedToName ||
+                    activity.assigned_to_name ||
+                    activity.assignedTo ||
+                    activity.assigned_to ||
+                    "Unassigned";
+
+                  return (
+                    <tr
+                      key={activity.id}
+                      className="border-b border-slate-50 last:border-0"
+                    >
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {activity.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          #{activity.id}
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {activity.activityType || activity.activity_type || "—"}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {assigned}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                            statusStyles[activity.status] ||
+                            "bg-slate-100 text-slate-500 border-slate-200"
+                          }`}
+                        >
+                          {statusLabels[activity.status] || activity.status}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {formatDate(activity.scheduledAt || activity.scheduled_at)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          {activity.status === "PENDING" && (
+                            <ActionButton
+                              label="Start"
+                              disabled={actionId === activity.id}
+                              onClick={() => runAction(activity.id, "start")}
+                            />
+                          )}
+
+                          {activity.status === "IN_PROGRESS" && (
+                            <ActionButton
+                              label="Complete"
+                              disabled={actionId === activity.id}
+                              onClick={() => runAction(activity.id, "complete")}
+                            />
+                          )}
+
+                          {(activity.status === "PENDING" ||
+                            activity.status === "IN_PROGRESS") && (
+                            <button
+                              disabled={actionId === activity.id}
+                              onClick={() => runAction(activity.id, "cancel")}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              <XCircle size={14} />
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showCreate && (
+        <CreateActivityModal
+          onClose={() => setShowCreate(false)}
+          onCreated={async () => {
+            setShowCreate(false);
+            await loadActivities();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {label}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
+        </div>
+
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+          <Icon size={19} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ label, onClick, disabled }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+    >
+      {disabled ? "..." : label}
+    </button>
+  );
+}
+
+function CreateActivityModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({
+    assignedTo: "1",
+    activityType: "VISIT",
+    title: "",
+    description: "",
+    scheduledAt: "",
+  });
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function update(field, value) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  useEffect(() => {
+    async function loadUsers() {
+      setUsersLoading(true);
+      try {
+        const result = await api.getUsers();
+        const data = result?.data || result?.users || result || [];
+        const activeUsers = Array.isArray(data)
+          ? data.filter((user) => Number(user.is_active) === 1)
+          : [];
+        setUsers(activeUsers);
+        if (activeUsers.length > 0) {
+          setForm((current) => ({
+            ...current,
+            assignedTo: String(activeUsers[0].id),
+          }));
+        }
+      } catch (err) {
+        setError(err.message || "Unable to load users.");
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+
+    loadUsers();
+  }, []);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    setSaving(true);
+
+    try {
+      await api.createActivity({
+        assignedTo: Number(form.assignedTo),
+        activityType: form.activityType,
+        title: form.title,
+        description: form.description || undefined,
+        scheduledAt: form.scheduledAt || undefined,
+      });
+
+      await onCreated();
+    } catch (err) {
+      setError(err.message || "Unable to create activity.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">
+              New field activity
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Create a real activity in the SafeLayer database.
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+          >
+            <XCircle size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4 p-6">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Assigned user
+            </label>
+            <select
+              value={form.assignedTo}
+              onChange={(event) => update("assignedTo", event.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50"
+              disabled={usersLoading || users.length === 0}
+              required
+            >
+              {usersLoading ? (
+                <option value="">Loading users...</option>
+              ) : users.length === 0 ? (
+                <option value="">No active users available</option>
+              ) : (
+                users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name} — {user.role}
+                  </option>
+                ))
+              )}
+            </select>
+            <p className="mt-1 text-xs text-slate-400">
+              Only active users in your SafeLayer organization are available.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Activity type
+            </label>
+            <select
+              value={form.activityType}
+              onChange={(event) => update("activityType", event.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+            >
+              <option value="VISIT">Visit</option>
+              <option value="COLLECTION">Collection</option>
+              <option value="DELIVERY">Delivery</option>
+              <option value="INSPECTION">Inspection</option>
+              <option value="MAINTENANCE">Maintenance</option>
+              <option value="WASTE_PICKUP">Waste Pickup</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Title
+            </label>
+            <input
+              value={form.title}
+              onChange={(event) => update("title", event.target.value)}
+              placeholder="e.g. Site inspection"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+              required
+              minLength={3}
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(event) => update("description", event.target.value)}
+              rows={3}
+              placeholder="Describe the field task..."
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Scheduled date and time
+            </label>
+            <input
+              type="datetime-local"
+              value={form.scheduledAt}
+              onChange={(event) => update("scheduledAt", event.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              disabled={saving}
+              type="submit"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {saving ? "Creating..." : "Create activity"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

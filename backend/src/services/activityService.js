@@ -78,6 +78,8 @@ async function getActivity(organizationId, activityId) {
 async function updateActivity(
   organizationId,
   activityId,
+  userId,
+  roles,
   updates
 ) {
   const activity = await activityRepository.findActivityById(
@@ -99,6 +101,32 @@ async function updateActivity(
       "Completed or cancelled activities cannot be edited"
     );
     error.statusCode = 400;
+    throw error;
+  }
+
+  const isAssignedWorker =
+    Number(activity.assigned_to) === Number(userId);
+
+  const isManager = roles.some((role) =>
+    ["OWNER", "ADMIN", "MANAGER"].includes(role)
+  );
+
+  if (!isAssignedWorker && !isManager) {
+    const error = new Error(
+      "You are not allowed to update this activity"
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (
+    updates.assignedTo !== undefined &&
+    !isManager
+  ) {
+    const error = new Error(
+      "Only managers can reassign activities"
+    );
+    error.statusCode = 403;
     throw error;
   }
 
@@ -181,7 +209,9 @@ async function completeActivity(
   organizationId,
   activityId,
   userId,
-  roles
+  roles,
+  latitude,
+  longitude
 ) {
   const activity = await activityRepository.findActivityById(
     organizationId,
@@ -217,16 +247,19 @@ async function completeActivity(
     throw error;
   }
 
-  return activityRepository.updateStatus(
+  return activityRepository.completeActivity(
     organizationId,
     activityId,
-    "COMPLETED"
+    latitude,
+    longitude
   );
 }
 
 async function cancelActivity(
   organizationId,
-  activityId
+  activityId,
+  userId,
+  roles
 ) {
   const activity = await activityRepository.findActivityById(
     organizationId,
@@ -236,6 +269,21 @@ async function cancelActivity(
   if (!activity) {
     const error = new Error("Activity not found");
     error.statusCode = 404;
+    throw error;
+  }
+
+  const isAssignedWorker =
+    Number(activity.assigned_to) === Number(userId);
+
+  const isManager = roles.some((role) =>
+    ["OWNER", "ADMIN", "MANAGER"].includes(role)
+  );
+
+  if (!isAssignedWorker && !isManager) {
+    const error = new Error(
+      "You are not allowed to cancel this activity"
+    );
+    error.statusCode = 403;
     throw error;
   }
 

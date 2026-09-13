@@ -55,6 +55,8 @@ async function update(req, res, next) {
       await activityService.updateActivity(
         req.user.organizationId,
         req.validated.params.id,
+        req.user.id,
+        req.user.roles,
         req.validated.body
       );
 
@@ -73,7 +75,8 @@ async function start(req, res, next) {
       await activityService.startActivity(
         req.user.organizationId,
         req.validated.params.id,
-        req.user.id
+        req.user.id,
+        req.user.roles
       );
 
     res.json({
@@ -92,8 +95,9 @@ async function complete(req, res, next) {
         req.user.organizationId,
         req.validated.params.id,
         req.user.id,
-        req.body.latitude,
-        req.body.longitude
+        req.user.roles,
+        req.validated.body.latitude,
+        req.validated.body.longitude
       );
 
     res.json({
@@ -110,7 +114,9 @@ async function cancel(req, res, next) {
     const activity =
       await activityService.cancelActivity(
         req.user.organizationId,
-        req.validated.params.id
+        req.validated.params.id,
+        req.user.id,
+        req.user.roles
       );
 
     res.json({

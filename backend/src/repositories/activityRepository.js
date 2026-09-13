@@ -51,10 +51,10 @@ async function createActivity({
       assignedTo,
       activityType,
       title,
-      description,
-      scheduledAt,
-      latitude,
-      longitude,
+      description ?? null,
+      scheduledAt ?? null,
+      latitude ?? null,
+      longitude ?? null,
     ]
   );
 
