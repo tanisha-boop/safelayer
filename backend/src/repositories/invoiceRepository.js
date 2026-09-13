@@ -1,7 +1,15 @@
 const pool = require("../config/database");
 
-async function findById(organizationId, invoiceId) {
-  const [rows] = await pool.execute(
+async function getConnection() {
+  return pool.getConnection();
+}
+
+async function findById(
+  organizationId,
+  invoiceId,
+  connection = pool
+) {
+  const [rows] = await connection.execute(
     `
       SELECT
         i.id,
@@ -226,9 +234,10 @@ async function updateStatus(
 
 async function findDuplicateCandidates(
   organizationId,
-  invoice
+  invoice,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         id,
@@ -272,6 +281,7 @@ async function findDuplicateCandidates(
 
 async function createRiskAssessment({
   activityId,
+  invoiceId,
   trustScore,
   riskLevel,
   locationVerified,
@@ -280,11 +290,13 @@ async function createRiskAssessment({
   documentVerified,
   requiresReview,
   explanation,
+  connection = pool,
 }) {
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `
       INSERT INTO risk_assessments (
         activity_id,
+        invoice_id,
         assessment_type,
         trust_score,
         risk_level,
@@ -295,10 +307,11 @@ async function createRiskAssessment({
         requires_review,
         explanation
       )
-      VALUES (?, 'INVOICE', ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 'INVOICE', ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      activityId,
+      activityId ?? null,
+      invoiceId ?? null,
       trustScore,
       riskLevel,
       locationVerified ? 1 : 0,
@@ -314,18 +327,24 @@ async function createRiskAssessment({
 }
 
 async function findLatestRiskAssessment(
-  activityId
+  organizationId,
+  invoiceId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
-      SELECT *
-      FROM risk_assessments
-      WHERE activity_id = ?
-        AND assessment_type = 'INVOICE'
-      ORDER BY created_at DESC
+      SELECT
+        ra.*
+      FROM risk_assessments ra
+      INNER JOIN invoices i
+        ON i.id = ra.invoice_id
+      WHERE i.organization_id = ?
+        AND ra.invoice_id = ?
+        AND ra.assessment_type = 'INVOICE'
+      ORDER BY ra.created_at DESC
       LIMIT 1
     `,
-    [activityId]
+    [organizationId, invoiceId]
   );
 
   return rows[0] || null;
@@ -339,8 +358,9 @@ async function createAuditEvent({
   entityId,
   oldValues,
   newValues,
+  connection = pool,
 }) {
-  await pool.execute(
+  await connection.execute(
     `
       INSERT INTO audit_events (
         organization_id,
@@ -371,9 +391,10 @@ async function createAuditEvent({
 
 async function findEvidenceForInvoice(
   organizationId,
-  invoiceId
+  invoiceId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         e.id,
@@ -415,9 +436,10 @@ async function findEvidenceForInvoice(
 
 async function linkEvidence(
   invoiceId,
-  evidenceId
+  evidenceId,
+  connection = pool
 ) {
-  await pool.execute(
+  await connection.execute(
     `
       INSERT INTO invoice_evidence (
         invoice_id,
@@ -433,6 +455,7 @@ async function linkEvidence(
 }
 
 module.exports = {
+  getConnection,
   findById,
   findByInvoiceNumber,
   createInvoice,

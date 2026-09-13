@@ -236,58 +236,62 @@ async function verifyInvoice({
   invoiceId,
   actorId,
 }) {
-  const invoice =
-    await invoiceRepository.findById(
-      organizationId,
-      invoiceId
-    );
+  const connection =
+    await invoiceRepository.getConnection();
 
-  if (!invoice) {
-    throw createError(
-      "Invoice not found",
-      404
-    );
-  }
+  try {
+    await connection.beginTransaction();
 
-  if (invoice.status === "PAID") {
-    throw createError(
-      "A paid invoice cannot be re-verified",
-      409
-    );
-  }
+    const invoice =
+      await invoiceRepository.findById(
+        organizationId,
+        invoiceId,
+        connection
+      );
 
-  const duplicateCandidates =
-    await invoiceRepository.findDuplicateCandidates(
-      organizationId,
-      invoice
-    );
+    if (!invoice) {
+      throw createError(
+        "Invoice not found",
+        404
+      );
+    }
 
-  const evidence =
-    await invoiceRepository.findEvidenceForInvoice(
-      organizationId,
-      invoiceId
-    );
+    if (invoice.status === "PAID") {
+      throw createError(
+        "A paid invoice cannot be re-verified",
+        409
+      );
+    }
 
-  const assessment = calculateRisk({
-    invoice,
-    duplicateCandidates,
-    evidence,
-  });
+    const duplicateCandidates =
+      await invoiceRepository.findDuplicateCandidates(
+        organizationId,
+        invoice,
+        connection
+      );
 
-  let riskAssessmentId = null;
+    const evidence =
+      await invoiceRepository.findEvidenceForInvoice(
+        organizationId,
+        invoiceId,
+        connection
+      );
 
-  /*
-   * risk_assessments requires an activity_id.
-   * InvoiceGuard can therefore create a risk
-   * assessment only when the invoice is linked
-   * to an activity.
-   */
-  if (invoice.activity_id) {
-    riskAssessmentId =
+    const assessment = calculateRisk({
+      invoice,
+      duplicateCandidates,
+      evidence,
+    });
+
+    const riskAssessmentId =
       await invoiceRepository.createRiskAssessment({
-        activityId: invoice.activity_id,
-        trustScore: assessment.trustScore,
-        riskLevel: assessment.riskLevel,
+        activityId:
+          invoice.activity_id ?? null,
+        invoiceId,
+        trustScore:
+          assessment.trustScore,
+        riskLevel:
+          assessment.riskLevel,
         locationVerified: false,
         timestampVerified: false,
         duplicateDetected:
@@ -297,86 +301,114 @@ async function verifyInvoice({
         requiresReview:
           assessment.requiresReview,
         explanation: assessment,
-      });
-  }
-
-  const oldStatus = invoice.status;
-
-  const newStatus =
-    assessment.requiresReview
-      ? "REQUIRES_REVIEW"
-      : "VERIFIED";
-
-  await invoiceRepository.updateStatus(
-    organizationId,
-    invoiceId,
-    newStatus
-  );
-
-  let reviewId = null;
-
-  if (assessment.requiresReview) {
-    const reason =
-      assessment.signals
-        .map(
-          (signal) =>
-            `${signal.code}: ${signal.message}`
-        )
-        .join(" ");
-
-    const priority =
-      assessment.riskLevel === "CRITICAL"
-        ? "CRITICAL"
-        : "HIGH";
-
-    const review =
-      await reviewService.createReview({
-        organizationId,
-        actorId,
-        invoiceId,
-        riskAssessmentId,
-        priority,
-        reason,
+        connection,
       });
 
-    reviewId = review.id;
-  }
+    const oldStatus =
+      invoice.status;
 
-  await invoiceRepository.createAuditEvent({
-    organizationId,
-    actorId,
-    action: "INVOICE_VERIFIED",
-    entityType: "INVOICE",
-    entityId: invoiceId,
-    oldValues: {
-      status: oldStatus,
-    },
-    newValues: {
-      status: newStatus,
-      trust_score:
-        assessment.trustScore,
-      risk_level:
-        assessment.riskLevel,
-      duplicate_detected:
-        assessment.duplicateDetected,
-      requires_review:
-        assessment.requiresReview,
-      risk_assessment_id:
-        riskAssessmentId,
-        review_id: reviewId,
-    },
-  });
+    const newStatus =
+      assessment.requiresReview
+        ? "REQUIRES_REVIEW"
+        : "VERIFIED";
 
-  return {
-    invoice:
+    await invoiceRepository.updateStatus(
+      organizationId,
+      invoiceId,
+      newStatus,
+      connection
+    );
+
+    let reviewId = null;
+
+    if (assessment.requiresReview) {
+      const reason =
+        assessment.signals
+          .map(
+            (signal) =>
+              `${signal.code}: ${signal.message}`
+          )
+          .join(" ");
+
+      const priority =
+        assessment.riskLevel === "CRITICAL"
+          ? "CRITICAL"
+          : "HIGH";
+
+      const existingReview =
+        await reviewService.findOpenReviewByEntity({
+          organizationId,
+          invoiceId,
+          connection,
+        });
+
+      if (existingReview) {
+        reviewId =
+          existingReview.id;
+      } else {
+        const review =
+          await reviewService.createReview({
+            organizationId,
+            actorId,
+            invoiceId,
+            riskAssessmentId,
+            priority,
+            reason,
+            connection,
+          });
+
+        reviewId = review.id;
+      }
+    }
+
+    await invoiceRepository.createAuditEvent({
+      organizationId,
+      actorId,
+      action: "INVOICE_VERIFIED",
+      entityType: "INVOICE",
+      entityId: invoiceId,
+      oldValues: {
+        status: oldStatus,
+      },
+      newValues: {
+        status: newStatus,
+        trust_score:
+          assessment.trustScore,
+        risk_level:
+          assessment.riskLevel,
+        duplicate_detected:
+          assessment.duplicateDetected,
+        requires_review:
+          assessment.requiresReview,
+        risk_assessment_id:
+          riskAssessmentId,
+        review_id:
+          reviewId,
+      },
+      connection,
+    });
+
+    const updatedInvoice =
       await invoiceRepository.findById(
         organizationId,
-        invoiceId
-      ),
-    assessment,
-    riskAssessmentId,
-    reviewId,
-  };
+        invoiceId,
+        connection
+      );
+
+    await connection.commit();
+
+    return {
+      invoice: updatedInvoice,
+      assessment,
+      riskAssessmentId,
+      reviewId,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function reviewInvoice({
@@ -411,32 +443,11 @@ async function reviewInvoice({
     );
   }
 
-  const openReviews =
-    await reviewService.listReviews({
-      organizationId,
-      status: "OPEN",
-      entityType: "INVOICE",
-      page: 1,
-      limit: 100,
-    });
-
-  const inReviewReviews =
-    await reviewService.listReviews({
-      organizationId,
-      status: "IN_REVIEW",
-      entityType: "INVOICE",
-      page: 1,
-      limit: 100,
-    });
-
   const matchingReview =
-    [
-      ...openReviews.reviews,
-      ...inReviewReviews.reviews,
-    ].find(
-      (review) =>
-        review.entity?.id === invoiceId
-    );
+    await reviewService.findOpenReviewByEntity({
+      organizationId,
+      invoiceId,
+    });
 
   if (!matchingReview) {
     throw createError(
@@ -463,45 +474,12 @@ async function reviewInvoice({
 
   await reviewService.updateReview({
     organizationId,
-    reviewId: matchingReview.id,
+    reviewId:
+      matchingReview.id,
     actorId,
     status: reviewStatus,
     resolution:
       resolution || null,
-  });
-
-  const invoiceStatusMap = {
-    APPROVE: "VERIFIED",
-    REJECT: "REJECTED",
-    ESCALATE: "REQUIRES_REVIEW",
-  };
-
-  const newStatus =
-    invoiceStatusMap[decision];
-
-  await invoiceRepository.updateStatus(
-    organizationId,
-    invoiceId,
-    newStatus
-  );
-
-  await invoiceRepository.createAuditEvent({
-    organizationId,
-    actorId,
-    action: "INVOICE_REVIEWED",
-    entityType: "INVOICE",
-    entityId: invoiceId,
-    oldValues: {
-      status: invoice.status,
-    },
-    newValues: {
-      status: newStatus,
-      decision,
-      resolution:
-        resolution || null,
-      review_id:
-        matchingReview.id,
-    },
   });
 
   return getInvoice(
