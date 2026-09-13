@@ -1,122 +1,106 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import Dashboard from "./components/Dashboard";
+import Evidence from "./components/Evidence";
+import FieldOperations from "./components/FieldOperations";
+import Login from "./components/Login";
+import RouteProof from "./components/RouteProof";
+import Sidebar from "./components/Sidebar";
+import Topbar from "./components/Topbar";
+import { api } from "./services/api";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activePage, setActivePage] = useState("overview");
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const result = await api.getMe();
+        setUser(result?.data?.user || result?.user || null);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSession();
+  }, []);
+
+  async function handleLogin(email, password) {
+    await api.login(email, password);
+    const result = await api.getMe();
+    setUser(result?.data?.user || result?.user || null);
+  }
+
+  async function handleLogout() {
+    try {
+      await api.logout();
+    } finally {
+      setUser(null);
+      setActivePage("overview");
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
+          <p className="text-sm font-medium text-slate-600">
+            Loading SafeLayer...
           </p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </main>
+    );
+  }
 
-      <div className="ticks"></div>
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <Sidebar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        user={user}
+        onLogout={handleLogout}
+      />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <div className="ml-64 min-h-screen">
+        <Topbar
+          activePage={activePage}
+          user={user}
+          onLogout={handleLogout}
+        />
+
+        <main className="p-6">
+          {activePage === "overview" && <Dashboard user={user} />}
+
+          {activePage === "field-operations" && (
+            <FieldOperations user={user} />
+          )}
+          {activePage === "evidence" && <Evidence user={user} />}
+
+          {activePage === "route-proof" && (<RouteProof user={user} />)}
+
+          {activePage !== "overview" &&
+            activePage !== "field-operations" && (
+              <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+                <h1 className="text-xl font-semibold text-slate-900">
+                  Coming soon
+                </h1>
+                <p className="mt-2 text-sm text-slate-500">
+                  This SafeLayer module is planned for the next implementation
+                  stage.
+                </p>
+              </section>
+            )}
+        </main>
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;
