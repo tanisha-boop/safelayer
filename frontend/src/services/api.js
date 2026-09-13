@@ -108,4 +108,58 @@ export const api = {
       method: "POST",
       body: JSON.stringify({}),
     }),
+
+  getCollections: (status, collectorId) => {
+    const params = new URLSearchParams();
+
+    if (status) {
+      params.set("status", status);
+    }
+
+    if (collectorId) {
+      params.set("collectorId", collectorId);
+    }
+
+    const query = params.toString();
+
+    return request(`/field-ledger/collections${query ? `?${query}` : ""}`);
+  },
+
+  getCollection: (id) =>
+    request(`/field-ledger/collections/${id}`),
+
+  createCollection: (collection) =>
+    request("/field-ledger/collections", {
+      method: "POST",
+      body: JSON.stringify(collection),
+    }),
+
+  collectPayment: (id, payment) =>
+    request(`/field-ledger/collections/${id}/collect`, {
+      method: "PATCH",
+      body: JSON.stringify(payment),
+    }),
+
+  createRemittance: (remittance) =>
+    request("/field-ledger/remittances", {
+      method: "POST",
+      body: JSON.stringify(remittance),
+    }),
+
+  getRemittances: () => request("/field-ledger/remittances"),
+
+  getRemittance: (id) =>
+    request(`/field-ledger/remittances/${id}`),
+
+  addRemittanceItem: (id, item) =>
+    request(`/field-ledger/remittances/${id}/items`, {
+      method: "POST",
+      body: JSON.stringify(item),
+    }),
+
+  verifyRemittance: (id) =>
+    request(`/field-ledger/remittances/${id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 };

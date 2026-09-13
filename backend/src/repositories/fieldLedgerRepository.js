@@ -76,12 +76,16 @@ async function findCollections(
       fa.status AS activity_status,
       u.first_name,
       u.last_name,
-      u.email AS collector_email
+      u.email AS collector_email,
+      ri.remittance_id AS remittance_id
     FROM collection_records cr
     INNER JOIN field_activities fa
       ON fa.id = cr.activity_id
     INNER JOIN users u
       ON u.id = cr.collector_id
+    LEFT JOIN remittance_items ri
+      ON ri.collection_id = cr.id
+      AND ri.organization_id = cr.organization_id
     WHERE cr.organization_id = ?
   `;
 
@@ -408,6 +412,29 @@ async function addRemittanceItem(
   return result.insertId;
 }
 
+
+async function findRemittances(
+  organizationId
+) {
+  const [rows] = await pool.execute(
+    `SELECT
+      r.*,
+      u.first_name,
+      u.last_name,
+      u.email AS collector_email
+     FROM remittances r
+     INNER JOIN users u
+       ON u.id = r.collector_id
+     WHERE r.organization_id = ?
+     ORDER BY r.created_at DESC`,
+    [
+      organizationId,
+    ]
+  );
+
+  return rows;
+}
+
 async function findRemittanceById(
   organizationId,
   remittanceId
@@ -673,6 +700,7 @@ module.exports = {
   findCollectionRemittance,
   linkRemittanceTransaction,
   addRemittanceItem,
+  findRemittances,
   findRemittanceById,
   findRemittanceItems,
   findRemittanceForUpdate,

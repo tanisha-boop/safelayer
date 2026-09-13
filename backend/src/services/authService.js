@@ -243,6 +243,7 @@ async function getCurrentUser(userId) {
     firstName: user.first_name,
     lastName: user.last_name,
     email: user.email,
+    role: user.role,
     roles,
     permissions,
   };

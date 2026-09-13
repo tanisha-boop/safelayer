@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import Evidence from "./components/Evidence";
+import FieldLedger from "./components/FieldLedger";
 import FieldOperations from "./components/FieldOperations";
 import Login from "./components/Login";
 import RouteProof from "./components/RouteProof";
@@ -90,10 +91,16 @@ function App() {
     <RouteProof user={user} />
   )}
 
+  {activePage === "field-ledger" && (
+    <FieldLedger user={user} />
+  )}
+
   {activePage !== "overview" &&
     activePage !== "field-operations" &&
     activePage !== "evidence" &&
-    activePage !== "route-proof" && (
+    activePage !== "route-proof" && 
+    activePage !== "field-ledger" &&
+    (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">
           Coming soon

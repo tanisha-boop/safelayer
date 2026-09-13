@@ -126,6 +126,23 @@ async function verifyRemittance(req, res, next) {
   }
 }
 
+
+async function listRemittances(req, res, next) {
+  try {
+    const remittances =
+      await fieldLedgerService.listRemittances(
+        req.user.organizationId
+      );
+
+    res.json({
+      success: true,
+      data: remittances,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getRemittance(req, res, next) {
   try {
     const result =
@@ -151,5 +168,6 @@ module.exports = {
   createRemittance,
   addRemittanceItem,
   verifyRemittance,
+  listRemittances,
   getRemittance,
 };

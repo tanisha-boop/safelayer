@@ -57,6 +57,12 @@ router.post(
 );
 
 router.get(
+  "/remittances",
+  authorize("remittances:read"),
+  controller.listRemittances
+);
+
+router.get(
   "/remittances/:id",
   authorize("remittances:read"),
   validate(getRemittanceSchema),

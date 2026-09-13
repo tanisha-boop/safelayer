@@ -6,6 +6,7 @@ import {
   MapPin,
   Plus,
   Search,
+  WalletCards,
   XCircle,
 } from "lucide-react";
 import { api } from "../services/api";
@@ -52,24 +53,41 @@ function normalizeActivities(result) {
   return [];
 }
 
-export default function FieldOperations() {
+export default function FieldOperations({ user }) {
   const [activities, setActivities] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [paymentCollection, setPaymentCollection] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   async function loadActivities() {
     setLoading(true);
     setError("");
 
     try {
-      const result = await api.getActivities();
-      setActivities(normalizeActivities(result));
+      const [activityResult, collectionResult] = await Promise.all([
+        api.getActivities(),
+        api.getCollections(),
+      ]);
+
+      setActivities(normalizeActivities(activityResult));
+
+      const collectionData =
+        collectionResult?.data ||
+        collectionResult?.collections ||
+        collectionResult ||
+        [];
+
+      setCollections(Array.isArray(collectionData) ? collectionData : []);
     } catch (err) {
-      setError(err.message || "Unable to load activities.");
+      setError(err.message || "Unable to load field operations.");
     } finally {
       setLoading(false);
     }
@@ -112,6 +130,63 @@ export default function FieldOperations() {
       completed: activities.filter((item) => item.status === "COMPLETED").length,
     };
   }, [activities]);
+
+  function getCollectionForActivity(activityId) {
+    return collections.find(
+      (collection) => Number(collection.activity_id) === Number(activityId)
+    );
+  }
+
+  function openPaymentModal(collection) {
+    setError("");
+    setPaymentCollection(collection);
+    setPaymentAmount(
+      Number(collection.collected_amount || 0) > 0
+        ? String(collection.collected_amount)
+        : ""
+    );
+    setPaymentNotes(collection.notes || "");
+  }
+
+  function closePaymentModal() {
+    if (paymentSaving) return;
+
+    setPaymentCollection(null);
+    setPaymentAmount("");
+    setPaymentNotes("");
+  }
+
+  async function handleRecordPayment(event) {
+    event.preventDefault();
+
+    if (!paymentCollection?.id) {
+      return;
+    }
+
+    const amount = Number(paymentAmount);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError("Enter a valid collected amount.");
+      return;
+    }
+
+    setPaymentSaving(true);
+    setError("");
+
+    try {
+      await api.collectPayment(paymentCollection.id, {
+        collectedAmount: amount,
+        notes: paymentNotes.trim() || undefined,
+      });
+
+      closePaymentModal();
+      await loadActivities();
+    } catch (err) {
+      setError(err.message || "Unable to record payment.");
+    } finally {
+      setPaymentSaving(false);
+    }
+  }
 
   async function runAction(id, action) {
     setActionId(id);
@@ -237,6 +312,14 @@ export default function FieldOperations() {
 
               <tbody>
                 {filteredActivities.map((activity) => {
+                  const activityType =
+                    activity.activityType || activity.activity_type || "";
+
+                  const collection =
+                    activityType === "COLLECTION"
+                      ? getCollectionForActivity(activity.id)
+                      : null;
+
                   const assigned =
                     activity.assignedToName ||
                     activity.assigned_to_name ||
@@ -256,6 +339,19 @@ export default function FieldOperations() {
                         <p className="mt-1 text-xs text-slate-400">
                           #{activity.id}
                         </p>
+
+                        {collection && (
+                          <div className="mt-2 space-y-1 text-xs">
+                            <p className="font-medium text-slate-600">
+                              {collection.reference_number}
+                            </p>
+                            <p className="text-slate-400">
+                              Expected ₱{Number(collection.expected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="mx-1">·</span>
+                              Collected ₱{Number(collection.collected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 text-sm text-slate-600">
@@ -299,6 +395,20 @@ export default function FieldOperations() {
                             />
                           )}
 
+                          {collection &&
+                            collection.collection_status !== "RECONCILED" &&
+                            collection.collection_status !== "CANCELLED" &&
+                            !collection.remittance_id && (
+                              <button
+                                type="button"
+                                onClick={() => openPaymentModal(collection)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              >
+                                <WalletCards size={14} />
+                                Record payment
+                              </button>
+                            )}
+
                           {(activity.status === "PENDING" ||
                             activity.status === "IN_PROGRESS") && (
                             <button
@@ -320,6 +430,113 @@ export default function FieldOperations() {
           </div>
         )}
       </div>
+
+      {paymentCollection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Record payment
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  {paymentCollection.reference_number}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closePaymentModal}
+                disabled={paymentSaving}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordPayment}>
+              <div className="space-y-4 p-6">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Expected amount</span>
+                    <span className="font-semibold text-slate-800">
+                      ₱{Number(paymentCollection.expected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Previously collected</span>
+                    <span className="font-semibold text-slate-800">
+                      ₱{Number(paymentCollection.collected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Collected amount
+                  </label>
+
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                      ₱
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={(event) => setPaymentAmount(event.target.value)}
+                      placeholder="5000.00"
+                      required
+                      autoFocus
+                      className="w-full rounded-xl border border-slate-200 py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400"
+                    />
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Enter the actual amount received from the customer.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Notes
+                  </label>
+                  <textarea
+                    value={paymentNotes}
+                    onChange={(event) => setPaymentNotes(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Optional payment notes or field observations..."
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={closePaymentModal}
+                  disabled={paymentSaving}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={paymentSaving}
+                  className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {paymentSaving ? "Saving..." : "Save payment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <CreateActivityModal
@@ -372,7 +589,10 @@ function CreateActivityModal({ onClose, onCreated }) {
     title: "",
     description: "",
     scheduledAt: "",
+    referenceNumber: "",
+    expectedAmount: "",
   });
+
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [error, setError] = useState("");
@@ -388,13 +608,17 @@ function CreateActivityModal({ onClose, onCreated }) {
   useEffect(() => {
     async function loadUsers() {
       setUsersLoading(true);
+
       try {
         const result = await api.getUsers();
         const data = result?.data || result?.users || result || [];
+
         const activeUsers = Array.isArray(data)
           ? data.filter((user) => Number(user.is_active) === 1)
           : [];
+
         setUsers(activeUsers);
+
         if (activeUsers.length > 0) {
           setForm((current) => ({
             ...current,
@@ -417,13 +641,31 @@ function CreateActivityModal({ onClose, onCreated }) {
     setSaving(true);
 
     try {
-      await api.createActivity({
+      const activityResult = await api.createActivity({
         assignedTo: Number(form.assignedTo),
         activityType: form.activityType,
         title: form.title,
         description: form.description || undefined,
         scheduledAt: form.scheduledAt || undefined,
       });
+
+      const activity = activityResult?.data || activityResult;
+
+      if (form.activityType === "COLLECTION") {
+        if (!activity?.id) {
+          throw new Error(
+            "The collection activity was created, but its ID could not be determined."
+          );
+        }
+
+        await api.createCollection({
+          activityId: Number(activity.id),
+          collectorId: Number(form.assignedTo),
+          referenceNumber: form.referenceNumber.trim(),
+          expectedAmount: Number(form.expectedAmount),
+          notes: form.description || undefined,
+        });
+      }
 
       await onCreated();
     } catch (err) {
@@ -434,9 +676,9 @@ function CreateActivityModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/40 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
             <h2 className="text-lg font-bold text-slate-950">
               New field activity
@@ -447,120 +689,210 @@ function CreateActivityModal({ onClose, onCreated }) {
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            disabled={saving}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+            aria-label="Close"
           >
             <XCircle size={20} />
           </button>
         </div>
 
-        <form onSubmit={submit} className="space-y-4 p-6">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Assigned user
-            </label>
-            <select
-              value={form.assignedTo}
-              onChange={(event) => update("assignedTo", event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50"
-              disabled={usersLoading || users.length === 0}
-              required
-            >
-              {usersLoading ? (
-                <option value="">Loading users...</option>
-              ) : users.length === 0 ? (
-                <option value="">No active users available</option>
-              ) : (
-                users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name} — {user.role}
-                  </option>
-                ))
-              )}
-            </select>
-            <p className="mt-1 text-xs text-slate-400">
-              Only active users in your SafeLayer organization are available.
-            </p>
-          </div>
+        <form
+          onSubmit={submit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Assigned user
+              </label>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Activity type
-            </label>
-            <select
-              value={form.activityType}
-              onChange={(event) => update("activityType", event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-            >
-              <option value="VISIT">Visit</option>
-              <option value="COLLECTION">Collection</option>
-              <option value="DELIVERY">Delivery</option>
-              <option value="INSPECTION">Inspection</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="WASTE_PICKUP">Waste Pickup</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
+              <select
+                value={form.assignedTo}
+                onChange={(event) =>
+                  update("assignedTo", event.target.value)
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50"
+                disabled={usersLoading || users.length === 0}
+                required
+              >
+                {usersLoading ? (
+                  <option value="">Loading users...</option>
+                ) : users.length === 0 ? (
+                  <option value="">No active users available</option>
+                ) : (
+                  users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} — {user.role}
+                    </option>
+                  ))
+                )}
+              </select>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Title
-            </label>
-            <input
-              value={form.title}
-              onChange={(event) => update("title", event.target.value)}
-              placeholder="e.g. Site inspection"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-              required
-              minLength={3}
-              maxLength={200}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Description
-            </label>
-            <textarea
-              value={form.description}
-              onChange={(event) => update("description", event.target.value)}
-              rows={3}
-              placeholder="Describe the field task..."
-              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Scheduled date and time
-            </label>
-            <input
-              type="datetime-local"
-              value={form.scheduledAt}
-              onChange={(event) => update("scheduledAt", event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+              <p className="mt-1 text-xs text-slate-400">
+                Only active users in your SafeLayer organization are available.
+              </p>
             </div>
-          )}
 
-          <div className="flex justify-end gap-3 pt-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Activity type
+              </label>
+
+              <select
+                value={form.activityType}
+                onChange={(event) =>
+                  update("activityType", event.target.value)
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+              >
+                <option value="VISIT">Visit</option>
+                <option value="COLLECTION">Collection</option>
+                <option value="DELIVERY">Delivery</option>
+                <option value="INSPECTION">Inspection</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="WASTE_PICKUP">Waste Pickup</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            {form.activityType === "COLLECTION" && (
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Collection details
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    These details create the collection record that will later
+                    be used for payment recording and cash reconciliation.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Collection reference
+                  </label>
+
+                  <input
+                    value={form.referenceNumber}
+                    onChange={(event) =>
+                      update("referenceNumber", event.target.value)
+                    }
+                    placeholder="e.g. COLL-2026-0001"
+                    minLength={3}
+                    maxLength={100}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  />
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Unique reference for this collection.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Expected amount
+                  </label>
+
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                      ₱
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={form.expectedAmount}
+                      onChange={(event) =>
+                        update("expectedAmount", event.target.value)
+                      }
+                      placeholder="5000.00"
+                      required
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400"
+                    />
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Amount the field employee is expected to collect.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Title
+              </label>
+
+              <input
+                value={form.title}
+                onChange={(event) =>
+                  update("title", event.target.value)
+                }
+                placeholder="e.g. Site inspection"
+                minLength={3}
+                maxLength={200}
+                required
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Description
+              </label>
+
+              <textarea
+                value={form.description}
+                onChange={(event) =>
+                  update("description", event.target.value)
+                }
+                rows={3}
+                placeholder="Describe the field task..."
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Scheduled date and time
+              </label>
+
+              <input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(event) =>
+                  update("scheduledAt", event.target.value)
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              disabled={saving}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
               Cancel
             </button>
 
             <button
-              disabled={saving}
               type="submit"
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              disabled={saving || usersLoading}
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Creating..." : "Create activity"}
             </button>

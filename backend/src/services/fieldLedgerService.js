@@ -828,6 +828,15 @@ async function verifyRemittance(
   }
 }
 
+
+async function listRemittances(
+  organizationId
+) {
+  return fieldLedgerRepository.findRemittances(
+    organizationId
+  );
+}
+
 async function getRemittance(
   organizationId,
   remittanceId
@@ -865,5 +874,6 @@ module.exports = {
   createRemittance,
   addRemittanceItem,
   verifyRemittance,
+  listRemittances,
   getRemittance,
 };
