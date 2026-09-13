@@ -76,28 +76,36 @@ function App() {
         />
 
         <main className="p-6">
-          {activePage === "overview" && <Dashboard user={user} />}
+  {activePage === "overview" && <Dashboard user={user} />}
 
-          {activePage === "field-operations" && (
-            <FieldOperations user={user} />
-          )}
-          {activePage === "evidence" && <Evidence user={user} />}
+  {activePage === "field-operations" && (
+    <FieldOperations user={user} />
+  )}
 
-          {activePage === "route-proof" && (<RouteProof user={user} />)}
+  {activePage === "evidence" && (
+    <Evidence user={user} />
+  )}
 
-          {activePage !== "overview" &&
-            activePage !== "field-operations" && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-                <h1 className="text-xl font-semibold text-slate-900">
-                  Coming soon
-                </h1>
-                <p className="mt-2 text-sm text-slate-500">
-                  This SafeLayer module is planned for the next implementation
-                  stage.
-                </p>
-              </section>
-            )}
-        </main>
+  {activePage === "route-proof" && (
+    <RouteProof user={user} />
+  )}
+
+  {activePage !== "overview" &&
+    activePage !== "field-operations" &&
+    activePage !== "evidence" &&
+    activePage !== "route-proof" && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-xl font-semibold text-slate-900">
+          Coming soon
+        </h1>
+
+        <p className="mt-2 text-sm text-slate-500">
+          This SafeLayer module is planned for the next implementation
+          stage.
+        </p>
+      </section>
+    )}
+</main>
       </div>
     </div>
   );

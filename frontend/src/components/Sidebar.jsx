@@ -6,6 +6,7 @@ import {
   FileText,
   HelpCircle,
   LayoutDashboard,
+  Navigation,
   ReceiptText,
   Settings,
   ShieldCheck,
