@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
-async function createNotification(notification) {
-  const [result] = await db.execute(
+async function createNotification(notification, connection = db) {
+  const [result] = await connection.execute(
     `INSERT INTO notifications
       (
         user_id,

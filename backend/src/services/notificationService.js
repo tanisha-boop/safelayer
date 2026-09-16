@@ -8,6 +8,7 @@ async function createNotification({
   message,
   entityType = null,
   entityId = null,
+  connection = null,
 }) {
   if (!userId || !organizationId) {
     throw new Error("Notification recipient is required");
@@ -17,15 +18,59 @@ async function createNotification({
     throw new Error("Notification type, title, and message are required");
   }
 
-  return notificationRepository.createNotification({
-    userId,
-    organizationId,
-    type,
-    title,
-    message,
-    entityType,
-    entityId,
-  });
+  return notificationRepository.createNotification(
+    {
+      userId,
+      organizationId,
+      type,
+      title,
+      message,
+      entityType,
+      entityId,
+    },
+    connection
+  );
+}
+
+async function createNotificationsForUsers({
+  userIds,
+  organizationId,
+  type,
+  title,
+  message,
+  entityType = null,
+  entityId = null,
+  connection = null,
+}) {
+  const uniqueUserIds = [
+    ...new Set(
+      (userIds || [])
+        .map((id) => Number(id))
+        .filter(
+          (id) => Number.isInteger(id) && id > 0
+        )
+    ),
+  ];
+
+  const notificationIds = [];
+
+  for (const userId of uniqueUserIds) {
+    const notificationId =
+      await createNotification({
+        userId,
+        organizationId,
+        type,
+        title,
+        message,
+        entityType,
+        entityId,
+        connection,
+      });
+
+    notificationIds.push(notificationId);
+  }
+
+  return notificationIds;
 }
 
 async function getNotifications(userId, organizationId, options = {}) {
@@ -86,6 +131,7 @@ async function markAllNotificationsAsRead(
 
 module.exports = {
   createNotification,
+  createNotificationsForUsers,
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
