@@ -2,18 +2,21 @@ const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
 
+const pool = require("../config/database");
+
 const evidenceRepository =
   require("../repositories/evidenceRepository");
 
 const activityRepository =
   require("../repositories/activityRepository");
 
-const allowedMimeTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-]);
+const notificationEventService =
+  require("./notificationEventService");
+
+const {
+  allowedMimeTypes,
+  validateFileContent,
+} = require("../utils/fileValidation");
 
 const mimeToEvidenceType = {
   "image/jpeg": "PHOTO",
@@ -75,6 +78,21 @@ async function createEvidence({
     throw error;
   }
 
+  const fileContentValid = await validateFileContent(
+    file.path,
+    file.mimetype
+  );
+
+  if (!fileContentValid) {
+    await fs.unlink(file.path).catch(() => {});
+
+    const error = new Error(
+      "The uploaded file content does not match its declared file type"
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
   const activity = await getActivity(
     organizationId,
     activityId
@@ -112,19 +130,73 @@ async function createEvidence({
     mimeToEvidenceType[file.mimetype] ||
     "OTHER";
 
-  return evidenceRepository.createEvidence({
-    activityId,
-    uploadedBy,
-    evidenceType,
-    fileName: file.originalname,
-    filePath: path.relative(
-      process.cwd(),
-      file.path
-    ),
-    mimeType: file.mimetype,
-    fileSize: file.size,
-    fileHash,
-  });
+  const filePath = path.relative(
+    process.cwd(),
+    file.path
+  );
+
+  const connection =
+    await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const evidence =
+      await evidenceRepository.createEvidence({
+        activityId,
+        uploadedBy,
+        evidenceType,
+        fileName: file.originalname,
+        filePath,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        fileHash,
+        connection,
+      });
+
+    await evidenceRepository.createAuditEvent({
+      organizationId,
+      actorId: uploadedBy,
+      action: "EVIDENCE_CREATED",
+      entityType: "EVIDENCE",
+      entityId: evidence.id,
+      newValues: {
+        activityId,
+        uploadedBy,
+        evidenceType,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        fileHash,
+        verificationStatus:
+          evidence.verification_status,
+      },
+      connection,
+    });
+
+    await notificationEventService.notifyManagers({
+      organizationId,
+      type: "EVIDENCE_UPLOADED",
+      title: "New evidence uploaded",
+      message:
+        `New evidence was uploaded for activity: ${activity.title}`,
+      entityType: "EVIDENCE",
+      entityId: evidence.id,
+      connection,
+    });
+
+    await connection.commit();
+
+    return evidence;
+  } catch (error) {
+    await connection.rollback();
+
+    await fs.unlink(file.path).catch(() => {});
+
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getEvidence(
@@ -179,18 +251,105 @@ async function verifyEvidence(
   organizationId,
   evidenceId,
   status,
-  notes
+  notes,
+  actorId
 ) {
-  await getEvidence(
-    organizationId,
-    evidenceId
-  );
+  const evidence =
+    await getEvidence(
+      organizationId,
+      evidenceId
+    );
 
-  return evidenceRepository.updateVerification(
-    evidenceId,
-    status,
-    notes
-  );
+  const allowedStatuses = [
+    "VERIFIED",
+    "REJECTED",
+  ];
+
+  if (!allowedStatuses.includes(status)) {
+    const error = new Error(
+      "Invalid evidence verification status"
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const connection =
+    await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const updated =
+      await evidenceRepository.updateVerification(
+        evidenceId,
+        status,
+        notes,
+        connection
+      );
+
+    if (!updated) {
+      const error = new Error(
+        "Evidence could not be updated"
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const action =
+      status === "VERIFIED"
+        ? "EVIDENCE_VERIFIED"
+        : "EVIDENCE_REJECTED";
+
+    await evidenceRepository.createAuditEvent({
+      organizationId,
+      actorId,
+      action,
+      entityType: "EVIDENCE",
+      entityId: evidenceId,
+      oldValues: {
+        verificationStatus:
+          evidence.verification_status,
+        verificationNotes:
+          evidence.verification_notes,
+      },
+      newValues: {
+        verificationStatus:
+          updated.verification_status,
+        verificationNotes:
+          updated.verification_notes,
+      },
+      connection,
+    });
+
+    await notificationEventService.notifyUser({
+      userId: evidence.uploaded_by,
+      organizationId,
+      type:
+        status === "VERIFIED"
+          ? "EVIDENCE_VERIFIED"
+          : "EVIDENCE_REJECTED",
+      title:
+        status === "VERIFIED"
+          ? "Evidence verified"
+          : "Evidence rejected",
+      message:
+        status === "VERIFIED"
+          ? `Your evidence for "${evidence.activity_title}" was verified.`
+          : `Your evidence for "${evidence.activity_title}" was rejected.`,
+      entityType: "EVIDENCE",
+      entityId: evidenceId,
+      connection,
+    });
+
+    await connection.commit();
+
+    return updated;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 module.exports = {

@@ -162,16 +162,16 @@ function Evidence({ user }) {
     <section className="space-y-6">
       <div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-slate-800">
             <FileCheck2 size={20} />
           </div>
 
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
               Evidence
             </h1>
 
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Upload, inspect, and verify operational evidence.
             </p>
           </div>
@@ -191,29 +191,29 @@ function Evidence({ user }) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <aside className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
           <div className="mb-4">
-            <h2 className="font-semibold text-slate-900">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-100">
               Select activity
             </h2>
 
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Evidence is attached to a specific field activity.
             </p>
           </div>
 
           {loadingActivities ? (
-            <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
+            <div className="flex items-center gap-2 py-6 text-sm text-slate-500 dark:text-slate-400">
               <Loader2 size={16} className="animate-spin" />
               Loading activities...
             </div>
           ) : activities.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center">
-              <p className="text-sm font-medium text-slate-700">
+            <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 No activities found.
               </p>
 
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Create a field activity first.
               </p>
             </div>
@@ -230,13 +230,13 @@ function Evidence({ user }) {
                     onClick={() => setSelectedActivityId(String(activity.id))}
                     className={`w-full rounded-xl border p-3 text-left transition ${
                       active
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
+                        ? "border-slate-950 bg-slate-950 text-white dark:border-slate-700 dark:bg-slate-700"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                     }`}
                   >
                     <p
                       className={`text-sm font-semibold ${
-                        active ? "text-white" : "text-slate-900"
+                        active ? "text-white" : "text-slate-900 dark:text-slate-100"
                       }`}
                     >
                       {activity.title}
@@ -244,7 +244,7 @@ function Evidence({ user }) {
 
                     <p
                       className={`mt-1 text-xs ${
-                        active ? "text-slate-300" : "text-slate-500"
+                        active ? "text-slate-300 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"
                       }`}
                     >
                       #{activity.id} · {activity.activity_type}
@@ -252,7 +252,7 @@ function Evidence({ user }) {
 
                     <p
                       className={`mt-1 text-xs ${
-                        active ? "text-slate-400" : "text-slate-400"
+                        active ? "text-slate-400 dark:text-slate-500" : "text-slate-400 dark:text-slate-500"
                       }`}
                     >
                       {activity.status}
@@ -265,19 +265,19 @@ function Evidence({ user }) {
         </aside>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   Selected activity
                 </p>
 
-                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
                   {selectedActivity?.title || "No activity selected"}
                 </h2>
 
                 {selectedActivity && (
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     Activity #{selectedActivity.id} ·{" "}
                     {selectedActivity.activity_type}
                   </p>
@@ -287,8 +287,8 @@ function Evidence({ user }) {
               <label
                 className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition ${
                   !selectedActivityId || uploading
-                    ? "cursor-not-allowed bg-slate-200 text-slate-400"
-                    : "bg-slate-950 text-white hover:bg-slate-800"
+                    ? "cursor-not-allowed bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
+                    : "bg-slate-950 text-white dark:bg-slate-800 hover:bg-slate-800"
                 }`}
               >
                 {uploading ? (
@@ -310,20 +310,20 @@ function Evidence({ user }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="font-semibold text-slate-900">
+                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">
                     Evidence records
                   </h2>
 
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Evidence attached to this field activity.
                   </p>
                 </div>
 
-                <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                <div className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">
                   {evidence.length} record
                   {evidence.length === 1 ? "" : "s"}
                 </div>
@@ -331,7 +331,7 @@ function Evidence({ user }) {
             </div>
 
             {loadingEvidence ? (
-              <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-500">
+              <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-500 dark:text-slate-400">
                 <Loader2 size={18} className="animate-spin" />
                 Loading evidence...
               </div>
@@ -339,14 +339,14 @@ function Evidence({ user }) {
               <div className="px-6 py-14 text-center">
                 <FileText
                   size={32}
-                  className="mx-auto text-slate-300"
+                  className="mx-auto text-slate-300 dark:text-slate-400"
                 />
 
-                <p className="mt-3 text-sm font-medium text-slate-700">
+                <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
                   No evidence uploaded yet.
                 </p>
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   Upload a photo or PDF to create the first evidence record.
                 </p>
               </div>
@@ -362,7 +362,7 @@ function Evidence({ user }) {
                     >
                       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                         <div className="flex gap-4">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                             {isImage ? (
                               <Image size={20} />
                             ) : (
@@ -371,11 +371,11 @@ function Evidence({ user }) {
                           </div>
 
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {item.file_name}
                             </p>
 
-                            <div className="mt-2 grid gap-x-6 gap-y-1 text-xs text-slate-500 sm:grid-cols-2">
+                            <div className="mt-2 grid gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
                               <span>
                                 Type: {item.evidence_type || "—"}
                               </span>
@@ -399,7 +399,7 @@ function Evidence({ user }) {
                             </div>
 
                             {item.file_hash && (
-                              <p className="mt-3 break-all rounded-lg bg-slate-50 p-2 font-mono text-[11px] text-slate-500">
+                              <p className="mt-3 break-all rounded-lg bg-slate-50 dark:bg-slate-800 p-2 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                                 SHA-256: {item.file_hash}
                               </p>
                             )}
@@ -465,19 +465,19 @@ function Evidence({ user }) {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 p-5">
             <div className="flex gap-3">
               <ShieldCheck
                 size={19}
-                className="mt-0.5 shrink-0 text-slate-700"
+                className="mt-0.5 shrink-0 text-slate-700 dark:text-slate-200"
               />
 
               <div>
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                   Evidence integrity
                 </p>
 
-                <p className="mt-1 text-xs leading-5 text-slate-500">
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                   SafeLayer stores a SHA-256 hash for each uploaded file.
                   Verification is a separate review action, so uploaded
                   evidence and reviewer decisions remain distinguishable.
@@ -488,7 +488,7 @@ function Evidence({ user }) {
         </div>
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         Signed in as {user?.first_name} {user?.last_name} · {user?.role}
       </p>
     </section>

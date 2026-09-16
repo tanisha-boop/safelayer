@@ -15,7 +15,7 @@ const statusStyles = {
   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
   IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
   COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
+  CANCELLED: "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800",
 };
 
 const statusLabels = {
@@ -217,18 +217,18 @@ export default function FieldOperations({ user }) {
     <div>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-slate-500">OPERATIONS</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">OPERATIONS</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
             Field Operations
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
+          <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
             Manage real field activities from the SafeLayer backend.
           </p>
         </div>
 
         <button
           onClick={() => setShowCreate(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 dark:bg-slate-800 py-3 text-sm font-semibold text-white hover:bg-slate-800"
         >
           <Plus size={17} />
           New activity
@@ -242,18 +242,18 @@ export default function FieldOperations({ user }) {
         <SummaryCard icon={CheckCircle2} label="Completed" value={summary.completed} />
       </div>
 
-      <div className="mt-7 rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mt-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 dark:border-slate-800 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full lg:max-w-sm">
             <Search
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
             />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search activities..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-400 dark:border-slate-600 focus:bg-white dark:bg-slate-900"
             />
           </div>
 
@@ -265,8 +265,8 @@ export default function FieldOperations({ user }) {
                   onClick={() => setStatusFilter(status)}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${
                     statusFilter === status
-                      ? "bg-slate-950 text-white"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      ? "bg-slate-950 text-white dark:bg-slate-800"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 dark:bg-slate-700"
                   }`}
                 >
                   {status === "ALL" ? "All" : statusLabels[status]}
@@ -283,16 +283,16 @@ export default function FieldOperations({ user }) {
         )}
 
         {loading ? (
-          <div className="p-10 text-center text-sm text-slate-500">
+          <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
             Loading activities...
           </div>
         ) : filteredActivities.length === 0 ? (
           <div className="p-10 text-center">
-            <Activity className="mx-auto text-slate-300" size={32} />
-            <p className="mt-3 text-sm font-semibold text-slate-700">
+            <Activity className="mx-auto text-slate-300 dark:text-slate-400" size={32} />
+            <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
               No activities found
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
               Try another search or status filter.
             </p>
           </div>
@@ -300,7 +300,7 @@ export default function FieldOperations({ user }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-left text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <th className="px-5 py-4 font-semibold">Activity</th>
                   <th className="px-5 py-4 font-semibold">Type</th>
                   <th className="px-5 py-4 font-semibold">Assigned</th>
@@ -330,22 +330,22 @@ export default function FieldOperations({ user }) {
                   return (
                     <tr
                       key={activity.id}
-                      className="border-b border-slate-50 last:border-0"
+                      className="border-b border-slate-50 dark:border-slate-800 last:border-0"
                     >
                       <td className="px-5 py-4">
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                           {activity.title}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                           #{activity.id}
                         </p>
 
                         {collection && (
                           <div className="mt-2 space-y-1 text-xs">
-                            <p className="font-medium text-slate-600">
+                            <p className="font-medium text-slate-600 dark:text-slate-400">
                               {collection.reference_number}
                             </p>
-                            <p className="text-slate-400">
+                            <p className="text-slate-400 dark:text-slate-500">
                               Expected ₱{Number(collection.expected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               <span className="mx-1">·</span>
                               Collected ₱{Number(collection.collected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -354,11 +354,11 @@ export default function FieldOperations({ user }) {
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-600">
+                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-400">
                         {activity.activityType || activity.activity_type || "—"}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-600">
+                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-400">
                         {assigned}
                       </td>
 
@@ -366,14 +366,14 @@ export default function FieldOperations({ user }) {
                         <span
                           className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
                             statusStyles[activity.status] ||
-                            "bg-slate-100 text-slate-500 border-slate-200"
+                            "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
                           }`}
                         >
                           {statusLabels[activity.status] || activity.status}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-500">
+                      <td className="px-5 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {formatDate(activity.scheduledAt || activity.scheduled_at)}
                       </td>
 
@@ -402,7 +402,7 @@ export default function FieldOperations({ user }) {
                               <button
                                 type="button"
                                 onClick={() => openPaymentModal(collection)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                               >
                                 <WalletCards size={14} />
                                 Record payment
@@ -433,13 +433,13 @@ export default function FieldOperations({ user }) {
 
       {paymentCollection && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
               <div>
-                <h2 className="text-lg font-bold text-slate-950">
+                <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                   Record payment
                 </h2>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   {paymentCollection.reference_number}
                 </p>
               </div>
@@ -448,7 +448,7 @@ export default function FieldOperations({ user }) {
                 type="button"
                 onClick={closePaymentModal}
                 disabled={paymentSaving}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+                className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800 disabled:opacity-50"
                 aria-label="Close"
               >
                 <XCircle size={20} />
@@ -457,29 +457,29 @@ export default function FieldOperations({ user }) {
 
             <form onSubmit={handleRecordPayment}>
               <div className="space-y-4 p-6">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 p-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Expected amount</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400">Expected amount</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
                       ₱{Number(paymentCollection.expected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Previously collected</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400">Previously collected</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
                       ₱{Number(paymentCollection.collected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Collected amount
                   </label>
 
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500">
                       ₱
                     </span>
                     <input
@@ -491,17 +491,17 @@ export default function FieldOperations({ user }) {
                       placeholder="5000.00"
                       required
                       autoFocus
-                      className="w-full rounded-xl border border-slate-200 py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                     />
                   </div>
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     Enter the actual amount received from the customer.
                   </p>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Notes
                   </label>
                   <textarea
@@ -510,17 +510,17 @@ export default function FieldOperations({ user }) {
                     rows={3}
                     maxLength={2000}
                     placeholder="Optional payment notes or field observations..."
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                    className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+              <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 px-6 py-4">
                 <button
                   type="button"
                   onClick={closePaymentModal}
                   disabled={paymentSaving}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -528,7 +528,7 @@ export default function FieldOperations({ user }) {
                 <button
                   type="submit"
                   disabled={paymentSaving}
-                  className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-slate-950 px-4 dark:bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {paymentSaving ? "Saving..." : "Save payment"}
                 </button>
@@ -553,16 +553,16 @@ export default function FieldOperations({ user }) {
 
 function SummaryCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             {label}
           </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{value}</p>
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
           <Icon size={19} />
         </div>
       </div>
@@ -575,7 +575,7 @@ function ActionButton({ label, onClick, disabled }) {
     <button
       disabled={disabled}
       onClick={onClick}
-      className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+      className="rounded-lg bg-slate-950 px-2 dark:bg-slate-800.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
     >
       {disabled ? "..." : label}
     </button>
@@ -677,13 +677,13 @@ function CreateActivityModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/40 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-5">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
           <div>
-            <h2 className="text-lg font-bold text-slate-950">
+            <h2 className="text-lg font-bold text-slate-950 dark:text-white">
               New field activity
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
               Create a real activity in the SafeLayer database.
             </p>
           </div>
@@ -692,7 +692,7 @@ function CreateActivityModal({ onClose, onCreated }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+            className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800 disabled:opacity-50"
             aria-label="Close"
           >
             <XCircle size={20} />
@@ -705,7 +705,7 @@ function CreateActivityModal({ onClose, onCreated }) {
         >
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Assigned user
               </label>
 
@@ -714,7 +714,7 @@ function CreateActivityModal({ onClose, onCreated }) {
                 onChange={(event) =>
                   update("assignedTo", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 disabled:bg-slate-50"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600 disabled:bg-slate-50 dark:disabled:bg-slate-800 dark:bg-slate-800"
                 disabled={usersLoading || users.length === 0}
                 required
               >
@@ -731,13 +731,13 @@ function CreateActivityModal({ onClose, onCreated }) {
                 )}
               </select>
 
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Only active users in your SafeLayer organization are available.
               </p>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Activity type
               </label>
 
@@ -746,7 +746,7 @@ function CreateActivityModal({ onClose, onCreated }) {
                 onChange={(event) =>
                   update("activityType", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
               >
                 <option value="VISIT">Visit</option>
                 <option value="COLLECTION">Collection</option>
@@ -759,19 +759,19 @@ function CreateActivityModal({ onClose, onCreated }) {
             </div>
 
             {form.activityType === "COLLECTION" && (
-              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 p-4">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                     Collection details
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     These details create the collection record that will later
                     be used for payment recording and cash reconciliation.
                   </p>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Collection reference
                   </label>
 
@@ -784,21 +784,21 @@ function CreateActivityModal({ onClose, onCreated }) {
                     minLength={3}
                     maxLength={100}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                   />
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     Unique reference for this collection.
                   </p>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Expected amount
                   </label>
 
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500">
                       ₱
                     </span>
 
@@ -812,11 +812,11 @@ function CreateActivityModal({ onClose, onCreated }) {
                       }
                       placeholder="5000.00"
                       required
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-2.5 pl-8 pr-3 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                     />
                   </div>
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     Amount the field employee is expected to collect.
                   </p>
                 </div>
@@ -824,7 +824,7 @@ function CreateActivityModal({ onClose, onCreated }) {
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Title
               </label>
 
@@ -837,12 +837,12 @@ function CreateActivityModal({ onClose, onCreated }) {
                 minLength={3}
                 maxLength={200}
                 required
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Description
               </label>
 
@@ -853,12 +853,12 @@ function CreateActivityModal({ onClose, onCreated }) {
                 }
                 rows={3}
                 placeholder="Describe the field task..."
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Scheduled date and time
               </label>
 
@@ -868,7 +868,7 @@ function CreateActivityModal({ onClose, onCreated }) {
                 onChange={(event) =>
                   update("scheduledAt", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
               />
             </div>
 
@@ -879,12 +879,12 @@ function CreateActivityModal({ onClose, onCreated }) {
             )}
           </div>
 
-          <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -892,7 +892,7 @@ function CreateActivityModal({ onClose, onCreated }) {
             <button
               type="submit"
               disabled={saving || usersLoading}
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-slate-950 px-4 dark:bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Creating..." : "Create activity"}
             </button>

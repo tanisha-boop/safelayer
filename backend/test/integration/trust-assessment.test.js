@@ -15,11 +15,29 @@ const CROSS_ORG_ORGANIZATION_ID = 4;
 let server;
 let baseUrl;
 
-function createAuthCookie(userId, organizationId, role) {
+async function createAuthCookie(userId, organizationId, role) {
+  const [rows] = await pool.execute(
+    `
+      SELECT token_version
+      FROM users
+      WHERE id = ?
+        AND organization_id = ?
+      LIMIT 1
+    `,
+    [userId, organizationId]
+  );
+
+  assert.equal(
+    rows.length,
+    1,
+    `Test user ${userId} was not found in organization ${organizationId}`
+  );
+
   const token = generateAccessToken({
     id: userId,
     organization_id: organizationId,
     roles: [role],
+    token_version: rows[0].token_version,
   });
 
   return `access_token=${token}`;
@@ -454,7 +472,7 @@ test(
       {
         method: "POST",
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             FIELD_WORKER_ID,
             ORGANIZATION_ID,
             "FIELD_WORKER"
@@ -474,7 +492,7 @@ test(
       `${baseUrl}/api/trust/activity/4`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             FIELD_WORKER_ID,
             ORGANIZATION_ID,
             "FIELD_WORKER"
@@ -499,7 +517,7 @@ test(
       `${baseUrl}/api/trust/activity/4`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             CROSS_ORG_OWNER_ID,
             CROSS_ORG_ORGANIZATION_ID,
             "OWNER"
@@ -519,7 +537,7 @@ test(
       `${baseUrl}/api/trust/activity/not-a-number`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             OWNER_ID,
             ORGANIZATION_ID,
             "OWNER"
@@ -568,7 +586,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               "OWNER"
@@ -698,7 +716,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               "OWNER"
@@ -786,7 +804,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               "OWNER"
@@ -808,7 +826,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               "OWNER"
@@ -875,7 +893,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               "OWNER"

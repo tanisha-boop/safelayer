@@ -137,6 +137,7 @@ async function register({
       id: user.id,
       organization_id: user.organization_id,
       roles: roles.map((role) => role.name),
+      token_version: user.token_version,
     });
 
     return {
@@ -200,6 +201,7 @@ async function login(email, password) {
     id: user.id,
     organization_id: user.organization_id,
     roles: roles.map((role) => role.name),
+    token_version: user.token_version,
   });
 
   return {

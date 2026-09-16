@@ -19,11 +19,29 @@ const CROSS_ORG_ORGANIZATION_ID = 4;
 let server;
 let baseUrl;
 
-function createAuthCookie(userId, organizationId, role) {
+async function createAuthCookie(userId, organizationId, role) {
+  const [rows] = await pool.execute(
+    `
+      SELECT token_version
+      FROM users
+      WHERE id = ?
+        AND organization_id = ?
+      LIMIT 1
+    `,
+    [userId, organizationId]
+  );
+
+  assert.equal(
+    rows.length,
+    1,
+    `Test user ${userId} was not found in organization ${organizationId}`
+  );
+
   const token = generateAccessToken({
     id: userId,
     organization_id: organizationId,
     roles: [role],
+    token_version: rows[0].token_version,
   });
 
   return `access_token=${token}`;
@@ -337,7 +355,7 @@ test(
 test(
   "FIELD_WORKER cannot verify an invoice",
   async () => {
-    const cookie = createAuthCookie(
+    const cookie = await createAuthCookie(
       FIELD_WORKER_ID,
       ORGANIZATION_ID,
       "FIELD_WORKER"
@@ -358,7 +376,7 @@ test(
 test(
   "invalid invoice id is rejected by validation",
   async () => {
-    const cookie = createAuthCookie(
+    const cookie = await createAuthCookie(
       OWNER_ID,
       ORGANIZATION_ID,
       "OWNER"
@@ -400,7 +418,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -464,7 +482,7 @@ test(
 test(
   "authorized invoice creation works",
   async () => {
-    const cookie = createAuthCookie(
+    const cookie = await createAuthCookie(
       OWNER_ID,
       ORGANIZATION_ID,
       "OWNER"
@@ -538,7 +556,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -626,7 +644,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -737,7 +755,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -878,7 +896,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -1010,7 +1028,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -1135,7 +1153,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -1260,7 +1278,7 @@ test(
     }
 
     try {
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"
@@ -1395,7 +1413,7 @@ test(
           );
         };
 
-      const cookie = createAuthCookie(
+      const cookie = await createAuthCookie(
         OWNER_ID,
         ORGANIZATION_ID,
         "OWNER"

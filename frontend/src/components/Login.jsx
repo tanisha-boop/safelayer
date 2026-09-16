@@ -3,7 +3,7 @@ import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("owner@safelayer.test");
-  const [password, setPassword] = useState("nishu123");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 

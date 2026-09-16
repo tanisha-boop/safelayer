@@ -314,15 +314,29 @@ async function deleteTestRemittance(
   }
 }
 
-function createAuthCookie(
+async function createAuthCookie(
   userId,
   organizationId,
   roles
 ) {
+  const [rows] = await pool.execute(
+    `
+      SELECT token_version
+      FROM users
+      WHERE id = ?
+        AND organization_id = ?
+      LIMIT 1
+    `,
+    [userId, organizationId]
+  );
+
+  assert.equal(rows.length, 1);
+
   const token = generateAccessToken({
     id: userId,
     organization_id: organizationId,
     roles,
+    token_version: rows[0].token_version,
   });
 
   return `access_token=${token}`;
@@ -417,7 +431,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               CROSS_ORG_OWNER_ID,
               CROSS_ORG_ORGANIZATION_ID,
               ["OWNER"]
@@ -529,7 +543,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               FIELD_WORKER_ID,
               ORGANIZATION_ID,
               ["FIELD_WORKER"]
@@ -601,7 +615,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -675,7 +689,7 @@ test(
         {
           method: "POST",
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]

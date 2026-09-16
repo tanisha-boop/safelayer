@@ -2,17 +2,15 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 
+const {
+  allowedMimeTypes,
+  mimeToExtension,
+} = require("../utils/fileValidation");
+
 const uploadDirectory = path.join(
   __dirname,
   "../../uploads"
 );
-
-const allowedTypes = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "application/pdf": ".pdf",
-};
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -21,7 +19,7 @@ const storage = multer.diskStorage({
 
   filename: (req, file, cb) => {
     const extension =
-      allowedTypes[file.mimetype] ||
+      mimeToExtension[file.mimetype] ||
       path.extname(file.originalname).toLowerCase();
 
     const uniqueName =
@@ -44,10 +42,7 @@ const uploadEvidence = multer({
       file.mimetype
     );
 
-    if (!Object.prototype.hasOwnProperty.call(
-      allowedTypes,
-      file.mimetype
-    )) {
+    if (!allowedMimeTypes.has(file.mimetype)) {
       return cb(
         new Error(
           "Only JPEG, PNG, WEBP, and PDF files are allowed"

@@ -30,6 +30,11 @@ async function request(path, options = {}) {
 export const api = {
   getDashboardOverview: () => request("/dashboard/overview"),
   getReportsOverview: () => request("/reports/overview"),
+  search: (query) => {
+    const params = new URLSearchParams({ q: query });
+    return request(`/search?${params.toString()}`);
+  },
+
 
   getMe: () => request("/auth/me"),
 

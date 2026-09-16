@@ -187,16 +187,16 @@ function RouteProof({ user }) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-slate-800">
               <Navigation size={20} />
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
                 RouteProof
               </h1>
 
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Capture field presence using GPS,
                 timestamps, and activity state.
               </p>
@@ -213,7 +213,7 @@ function RouteProof({ user }) {
               loadProof(selectedId);
             }
           }}
-          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
+          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
           title="Refresh"
         >
           <RefreshCw size={17} />
@@ -233,17 +233,17 @@ function RouteProof({ user }) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-900 dark:text-slate-100">
             Field activities
           </h2>
 
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Choose an activity to record RouteProof.
           </p>
 
           {loading ? (
-            <div className="mt-6 flex items-center gap-2 text-sm text-slate-500">
+            <div className="mt-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Loader2
                 size={16}
                 className="animate-spin"
@@ -266,8 +266,8 @@ function RouteProof({ user }) {
                     }
                     className={`w-full rounded-xl border p-3 text-left transition ${
                       active
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 hover:bg-slate-50"
+                        ? "border-slate-950 bg-slate-950 text-white dark:border-slate-700 dark:bg-slate-700"
+                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                     }`}
                   >
                     <p className="text-sm font-semibold">
@@ -277,8 +277,8 @@ function RouteProof({ user }) {
                     <p
                       className={`mt-1 text-xs ${
                         active
-                          ? "text-slate-300"
-                          : "text-slate-500"
+                          ? "text-slate-300 dark:text-slate-400"
+                          : "text-slate-500 dark:text-slate-400"
                       }`}
                     >
                       #{item.id} ·{" "}
@@ -290,7 +290,7 @@ function RouteProof({ user }) {
               })}
 
               {!activities.length && (
-                <p className="py-6 text-center text-sm text-slate-400">
+                <p className="py-6 text-center text-sm text-slate-400 dark:text-slate-500">
                   No activities found.
                 </p>
               )}
@@ -299,17 +299,17 @@ function RouteProof({ user }) {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Selected activity
             </p>
 
-            <h2 className="mt-1 text-xl font-semibold text-slate-900">
+            <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
               {activity?.title ||
                 "No activity selected"}
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {activity
                 ? `#${activity.id} · ${activity.activity_type} · ${activity.status}`
                 : "Select an activity."}
@@ -326,7 +326,7 @@ function RouteProof({ user }) {
                 onClick={() =>
                   runAction("checkIn")
                 }
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 dark:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 dark:text-slate-500"
               >
                 <MapPin size={16} />
                 Check in
@@ -341,7 +341,7 @@ function RouteProof({ user }) {
                 onClick={() =>
                   runAction("gps")
                 }
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800 dark:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 dark:text-slate-500"
               >
                 <Crosshair size={16} />
                 GPS update
@@ -357,32 +357,32 @@ function RouteProof({ user }) {
                 onClick={() =>
                   runAction("checkOut")
                 }
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800 dark:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 dark:text-slate-500"
               >
                 <Activity size={16} />
                 Check out
               </button>
             </div>
 
-            <p className="mt-4 text-xs text-slate-400">
+            <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
               RouteProof requests browser location only
               when a field action is performed.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="font-semibold text-slate-900">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100">
                 RouteProof event timeline
               </h2>
 
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Recorded GPS events for this activity.
               </p>
             </div>
 
             {loadingProof ? (
-              <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
+              <div className="flex items-center gap-2 p-6 text-sm text-slate-500 dark:text-slate-400">
                 <Loader2
                   size={16}
                   className="animate-spin"
@@ -390,7 +390,7 @@ function RouteProof({ user }) {
                 Loading events...
               </div>
             ) : proof.length === 0 ? (
-              <p className="p-8 text-center text-sm text-slate-400">
+              <p className="p-8 text-center text-sm text-slate-400 dark:text-slate-500">
                 No RouteProof events yet.
               </p>
             ) : (
@@ -400,16 +400,16 @@ function RouteProof({ user }) {
                     key={event.id}
                     className="flex gap-4 p-5"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                       <MapPin size={17} />
                     </div>
 
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                         {event.event_type}
                       </p>
 
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {event.first_name}{" "}
                         {event.last_name} ·{" "}
                         {new Date(
@@ -417,7 +417,7 @@ function RouteProof({ user }) {
                         ).toLocaleString()}
                       </p>
 
-                      <p className="mt-1 font-mono text-xs text-slate-400">
+                      <p className="mt-1 font-mono text-xs text-slate-400 dark:text-slate-500">
                         {event.latitude},{" "}
                         {event.longitude} · ±
                         {event.accuracy_meters ?? "—"}m
@@ -431,7 +431,7 @@ function RouteProof({ user }) {
         </div>
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         Signed in as {user?.first_name}{" "}
         {user?.last_name} · {user?.role}
       </p>

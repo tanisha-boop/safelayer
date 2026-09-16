@@ -1,4 +1,6 @@
+const pool = require("../config/database");
 const activityRepository = require("../repositories/activityRepository");
+const notificationEventService = require("./notificationEventService");
 
 function toMySQLDateTime(value) {
   if (!value) {
@@ -26,31 +28,61 @@ async function createActivity({
   latitude,
   longitude,
 }) {
-  const user = await activityRepository.findUserForAssignment(
-    organizationId,
-    assignedTo
-  );
+  const connection = await pool.getConnection();
 
-  if (!user) {
-    const error = new Error(
-      "Assigned user does not exist, is inactive, or belongs to another organization"
-    );
-    error.statusCode = 400;
+  try {
+    await connection.beginTransaction();
+
+    const user =
+      await activityRepository.findUserForAssignment(
+        organizationId,
+        assignedTo
+      );
+
+    if (!user) {
+      const error = new Error(
+        "Assigned user does not exist, is inactive, or belongs to another organization"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const mysqlScheduledAt =
+      toMySQLDateTime(scheduledAt);
+
+    const activity =
+      await activityRepository.createActivity({
+        organizationId,
+        assignedTo,
+        activityType,
+        title,
+        description,
+        scheduledAt: mysqlScheduledAt,
+        latitude,
+        longitude,
+        connection,
+      });
+
+    await notificationEventService.notifyUser({
+      userId: assignedTo,
+      organizationId,
+      type: "ACTIVITY_ASSIGNED",
+      title: "New activity assigned",
+      message: `You have been assigned: ${activity.title}`,
+      entityType: "FIELD_ACTIVITY",
+      entityId: activity.id,
+      connection,
+    });
+
+    await connection.commit();
+
+    return activity;
+  } catch (error) {
+    await connection.rollback();
     throw error;
+  } finally {
+    connection.release();
   }
-
-  const mysqlScheduledAt = toMySQLDateTime(scheduledAt);
-
-  return activityRepository.createActivity({
-    organizationId,
-    assignedTo,
-    activityType,
-    title,
-    description,
-    scheduledAt: mysqlScheduledAt,
-    latitude,
-    longitude,
-  });
 }
 
 async function getActivities(organizationId, filters) {

@@ -48,10 +48,10 @@ function statusClass(status) {
 
     case "EXPECTED":
     case "PENDING":
-      return "bg-slate-100 text-slate-700 border-slate-200";
+      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800";
 
     default:
-      return "bg-slate-100 text-slate-600 border-slate-200";
+      return "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800";
   }
 }
 
@@ -69,13 +69,13 @@ function StatusBadge({ status }) {
 
 function Metric({ label, value, icon: Icon, danger = false }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
           <p
             className={`mt-2 text-2xl font-bold ${
-              danger ? "text-red-600" : "text-slate-900"
+              danger ? "text-red-600" : "text-slate-900 dark:text-slate-100"
             }`}
           >
             {money(value)}
@@ -86,7 +86,7 @@ function Metric({ label, value, icon: Icon, danger = false }) {
           className={`flex h-11 w-11 items-center justify-center rounded-xl ${
             danger
               ? "bg-red-50 text-red-600"
-              : "bg-slate-100 text-slate-700"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
           }`}
         >
           <Icon size={21} />
@@ -537,15 +537,15 @@ export default function FieldLedger({ user }) {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-800">
               <WalletCards size={22} />
             </div>
 
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 FieldLedger
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Field collection accountability and cash reconciliation
               </p>
             </div>
@@ -556,7 +556,7 @@ export default function FieldLedger({ user }) {
           <button
             type="button"
             onClick={loadData}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
           >
             <RefreshCw size={16} />
             Refresh
@@ -582,7 +582,7 @@ export default function FieldLedger({ user }) {
               clearMessages();
               setShowRemittanceForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
           >
             <Send size={16} />
             New Remittance
@@ -648,14 +648,14 @@ export default function FieldLedger({ user }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="border-b border-slate-200 dark:border-slate-800 p-5">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h2 className="font-semibold text-slate-900">
+                <h2 className="font-semibold text-slate-900 dark:text-slate-100">
                   Collection Records
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Track expected, collected, disputed, and reconciled field
                   payments.
                 </p>
@@ -664,7 +664,7 @@ export default function FieldLedger({ user }) {
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400 dark:border-slate-600"
               >
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
@@ -677,39 +677,39 @@ export default function FieldLedger({ user }) {
 
           {loading ? (
             <div className="flex min-h-64 items-center justify-center">
-              <Loader2 className="animate-spin text-slate-500" size={24} />
+              <Loader2 className="animate-spin text-slate-500 dark:text-slate-400" size={24} />
             </div>
           ) : collections.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center">
-              <ClipboardList size={32} className="text-slate-300" />
-              <p className="mt-3 font-medium text-slate-700">
+              <ClipboardList size={32} className="text-slate-300 dark:text-slate-400" />
+              <p className="mt-3 font-medium text-slate-700 dark:text-slate-200">
                 No collection records
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Create a collection record to begin tracking field payments.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[850px] text-left">
-                <thead className="border-b border-slate-200 bg-slate-50">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Reference
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Activity
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Collector
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Expected
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Collected
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Status
                     </th>
                     <th className="px-5 py-3" />
@@ -720,32 +720,32 @@ export default function FieldLedger({ user }) {
                   {collections.map((collection) => (
                     <tr
                       key={collection.id}
-                      className="transition hover:bg-slate-50"
+                      className="transition hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                     >
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-slate-900 dark:text-slate-100">
                           {collection.reference_number}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                           #{collection.id}
                         </p>
                       </td>
 
                       <td className="px-5 py-4">
-                        <p className="max-w-[210px] truncate text-sm text-slate-700">
+                        <p className="max-w-[210px] truncate text-sm text-slate-700 dark:text-slate-200">
                           {collection.activity_title || "Unknown activity"}
                         </p>
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-600">
+                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-400">
                         {collection.first_name} {collection.last_name}
                       </td>
 
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                      <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200">
                         {money(collection.expected_amount)}
                       </td>
 
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-900">
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
                         {money(collection.collected_amount)}
                       </td>
 
@@ -757,7 +757,7 @@ export default function FieldLedger({ user }) {
                         <button
                           type="button"
                           onClick={() => openCollection(collection)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-white dark:text-slate-100"
                         >
                           <ChevronRight size={18} />
                         </button>
@@ -770,24 +770,24 @@ export default function FieldLedger({ user }) {
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="border-b border-slate-200 dark:border-slate-800 p-5">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-100">
               Remittance Control
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Build a remittance from collected field transactions and compare
               declared cash against expected cash.
             </p>
           </div>
 
-          <div className="border-b border-slate-200 bg-slate-50/60 p-5">
+          <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <label className="text-sm font-semibold text-slate-800">
+                <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                   Select Remittance
                 </label>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Open an existing remittance to review its cash turnover and reconciliation status.
                 </p>
               </div>
@@ -812,7 +812,7 @@ export default function FieldLedger({ user }) {
                   handleSelectRemittance(event.target.value)
                 }
                 disabled={loadingDetail || saving}
-                className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-slate-400 dark:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">Select a remittance</option>
 
@@ -826,7 +826,7 @@ export default function FieldLedger({ user }) {
                 ))}
               </select>
             ) : (
-              <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+              <div className="mt-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm text-slate-500 dark:text-slate-400">
                 No remittance records found.
               </div>
             )}
@@ -834,14 +834,14 @@ export default function FieldLedger({ user }) {
 
           {!selectedRemittance ? (
             <div className="p-6">
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                <Send size={24} className="text-slate-400" />
+              <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-5">
+                <Send size={24} className="text-slate-400 dark:text-slate-500" />
 
-                <p className="mt-3 font-medium text-slate-800">
+                <p className="mt-3 font-medium text-slate-800 dark:text-slate-200">
                   No remittance selected
                 </p>
 
-                <p className="mt-1 text-sm leading-6 text-slate-500">
+                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Select an existing remittance above, or create a new one to begin a cash turnover.
                 </p>
 
@@ -851,11 +851,11 @@ export default function FieldLedger({ user }) {
             <div className="space-y-5 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Remittance
                   </p>
 
-                  <h3 className="mt-1 font-semibold text-slate-900">
+                  <h3 className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
                     {selectedRemittance.remittance_reference}
                   </h3>
                 </div>
@@ -864,16 +864,16 @@ export default function FieldLedger({ user }) {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-xs text-slate-500">Expected</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-4">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Expected</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
                     {money(selectedRemittance.expected_amount)}
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-xs text-slate-500">Declared</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-4">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Declared</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
                     {money(selectedRemittance.actual_amount)}
                   </p>
                 </div>
@@ -886,7 +886,7 @@ export default function FieldLedger({ user }) {
                     : "border-red-200 bg-red-50"
                 }`}
               >
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Variance
                 </p>
 
@@ -900,17 +900,17 @@ export default function FieldLedger({ user }) {
                   {money(selectedRemittance.variance_amount)}
                 </p>
 
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Actual amount minus expected amount
                 </p>
               </div>
 
               <form
                 onSubmit={handleAddRemittanceItem}
-                className="space-y-3 border-t border-slate-200 pt-5"
+                className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-5"
               >
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                     Add collected record
                   </label>
 
@@ -919,7 +919,7 @@ export default function FieldLedger({ user }) {
                     onChange={(event) =>
                       setRemittanceItemCollectionId(event.target.value)
                     }
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                     disabled={
                       selectedRemittance.status !== "PENDING" ||
                       saving
@@ -943,7 +943,7 @@ export default function FieldLedger({ user }) {
                     selectedRemittance.status !== "PENDING" ||
                     !remittanceItemCollectionId
                   }
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Add Collection
                 </button>
@@ -971,7 +971,7 @@ export default function FieldLedger({ user }) {
               <button
                 type="button"
                 onClick={refreshRemittance}
-                className="flex w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-900"
+                className="flex w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white dark:text-slate-100"
               >
                 <RefreshCw size={15} />
                 Refresh Remittance
@@ -982,30 +982,30 @@ export default function FieldLedger({ user }) {
       </div>
 
       {loadingDetail && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
-          <div className="rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 dark:bg-slate-950/40 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl">
             <Loader2
               size={25}
-              className="animate-spin text-slate-700"
+              className="animate-spin text-slate-700 dark:text-slate-200"
             />
           </div>
         </div>
       )}
 
       {selectedCollection && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-200 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 p-6">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   Collection #{selectedCollection.id}
                 </p>
 
-                <h2 className="mt-1 text-xl font-bold text-slate-900">
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
                   {selectedCollection.reference_number}
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {selectedCollection.activity_title}
                 </p>
               </div>
@@ -1013,7 +1013,7 @@ export default function FieldLedger({ user }) {
               <button
                 type="button"
                 onClick={() => setSelectedCollection(null)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800 hover:text-slate-700 dark:text-slate-200"
               >
                 <X size={19} />
               </button>
@@ -1022,21 +1022,21 @@ export default function FieldLedger({ user }) {
             <div className="space-y-6 p-6">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <p className="text-xs text-slate-500">Expected</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Expected</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
                     {money(selectedCollection.expected_amount)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">Collected</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Collected</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
                     {money(selectedCollection.collected_amount)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">Status</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Status</p>
                   <div className="mt-2">
                     <StatusBadge
                       status={selectedCollection.collection_status}
@@ -1045,17 +1045,17 @@ export default function FieldLedger({ user }) {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   Collector
                 </p>
 
-                <p className="mt-1 font-medium text-slate-800">
+                <p className="mt-1 font-medium text-slate-800 dark:text-slate-200">
                   {selectedCollection.first_name}{" "}
                   {selectedCollection.last_name}
                 </p>
 
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {selectedCollection.collector_email}
                 </p>
               </div>
@@ -1075,11 +1075,11 @@ export default function FieldLedger({ user }) {
 
               {selectedCollection.notes && (
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                     Notes
                   </p>
 
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                  <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                     {selectedCollection.notes}
                   </p>
                 </div>
@@ -1090,18 +1090,18 @@ export default function FieldLedger({ user }) {
       )}
 
       {showCollectionForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 p-4">
           <form
             onSubmit={handleCreateCollection}
-            className="w-full max-w-xl rounded-2xl bg-white shadow-2xl"
+            className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-6">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   Create Collection
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Create the expected cash record before the field payment is
                   recorded.
                 </p>
@@ -1110,7 +1110,7 @@ export default function FieldLedger({ user }) {
               <button
                 type="button"
                 onClick={() => setShowCollectionForm(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800"
               >
                 <X size={18} />
               </button>
@@ -1118,7 +1118,7 @@ export default function FieldLedger({ user }) {
 
             <div className="space-y-4 p-6">
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Collection Activity
                 </label>
 
@@ -1128,7 +1128,7 @@ export default function FieldLedger({ user }) {
                   onChange={(event) =>
                     handleActivityChange(event.target.value)
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 >
                   <option value="">Select collection activity</option>
 
@@ -1141,7 +1141,7 @@ export default function FieldLedger({ user }) {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Assigned Collector
                 </label>
 
@@ -1154,7 +1154,7 @@ export default function FieldLedger({ user }) {
                       collectorId: event.target.value,
                     }))
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 >
                   <option value="">Select collector</option>
 
@@ -1165,14 +1165,14 @@ export default function FieldLedger({ user }) {
                   ))}
                 </select>
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   The backend will confirm that this collector is assigned to
                   the selected activity.
                 </p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Reference Number
                 </label>
 
@@ -1186,12 +1186,12 @@ export default function FieldLedger({ user }) {
                     }))
                   }
                   placeholder="COLL-0007"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Expected Amount
                 </label>
 
@@ -1208,12 +1208,12 @@ export default function FieldLedger({ user }) {
                     }))
                   }
                   placeholder="5000.00"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Notes
                 </label>
 
@@ -1226,16 +1226,16 @@ export default function FieldLedger({ user }) {
                       notes: event.target.value,
                     }))
                   }
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
+            <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 p-6">
               <button
                 type="button"
                 onClick={() => setShowCollectionForm(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400"
               >
                 Cancel
               </button>
@@ -1256,18 +1256,18 @@ export default function FieldLedger({ user }) {
       )}
 
       {showPaymentForm && selectedCollection && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 dark:bg-slate-950/70 p-4">
           <form
             onSubmit={handleRecordPayment}
-            className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+            className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-6">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   Record Payment
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {selectedCollection.reference_number}
                 </p>
               </div>
@@ -1275,31 +1275,31 @@ export default function FieldLedger({ user }) {
               <button
                 type="button"
                 onClick={() => setShowPaymentForm(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4 p-6">
-              <div className="rounded-xl bg-slate-50 p-4">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Expected</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Expected</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {money(selectedCollection.expected_amount)}
                   </span>
                 </div>
 
                 <div className="mt-2 flex justify-between text-sm">
-                  <span className="text-slate-500">Current collected</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Current collected</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {money(selectedCollection.collected_amount)}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Collected Amount
                 </label>
 
@@ -1315,16 +1315,16 @@ export default function FieldLedger({ user }) {
                       collectedAmount: event.target.value,
                     }))
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   Amount above expected will create a DISPUTED collection.
                 </p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Notes
                 </label>
 
@@ -1337,16 +1337,16 @@ export default function FieldLedger({ user }) {
                       notes: event.target.value,
                     }))
                   }
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
+            <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 p-6">
               <button
                 type="button"
                 onClick={() => setShowPaymentForm(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400"
               >
                 Cancel
               </button>
@@ -1367,18 +1367,18 @@ export default function FieldLedger({ user }) {
       )}
 
       {showRemittanceForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 p-4">
           <form
             onSubmit={handleCreateRemittance}
-            className="w-full max-w-xl rounded-2xl bg-white shadow-2xl"
+            className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-6">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   Create Remittance
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Start a cash turnover record for a field collector.
                 </p>
               </div>
@@ -1386,7 +1386,7 @@ export default function FieldLedger({ user }) {
               <button
                 type="button"
                 onClick={() => setShowRemittanceForm(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800"
               >
                 <X size={18} />
               </button>
@@ -1394,7 +1394,7 @@ export default function FieldLedger({ user }) {
 
             <div className="space-y-4 p-6">
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Collector
                 </label>
 
@@ -1407,7 +1407,7 @@ export default function FieldLedger({ user }) {
                       collectorId: event.target.value,
                     }))
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 >
                   <option value="">Select collector</option>
 
@@ -1420,7 +1420,7 @@ export default function FieldLedger({ user }) {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Remittance Reference
                 </label>
 
@@ -1434,12 +1434,12 @@ export default function FieldLedger({ user }) {
                     }))
                   }
                   placeholder="REM-0007"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Declared Amount
                 </label>
 
@@ -1456,21 +1456,21 @@ export default function FieldLedger({ user }) {
                     }))
                   }
                   placeholder="4000.00"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
                 />
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   This is the amount the collector declares as turned over.
                   The system will compare it against linked collections.
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
+            <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 p-6">
               <button
                 type="button"
                 onClick={() => setShowRemittanceForm(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400"
               >
                 Cancel
               </button>

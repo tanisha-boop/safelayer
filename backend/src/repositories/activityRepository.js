@@ -33,8 +33,9 @@ async function createActivity({
   scheduledAt,
   latitude,
   longitude,
+  connection = pool,
 }) {
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `INSERT INTO field_activities (
       organization_id,
       assigned_to,
@@ -60,7 +61,8 @@ async function createActivity({
 
   return findActivityById(
     organizationId,
-    result.insertId
+    result.insertId,
+    connection
   );
 }
 
@@ -226,6 +228,9 @@ async function completeActivity(
   longitude,
   connection = pool
 ) {
+  const safeLatitude = latitude ?? null;
+  const safeLongitude = longitude ?? null;
+
   await connection.execute(
     `UPDATE field_activities
      SET
@@ -236,8 +241,8 @@ async function completeActivity(
      WHERE organization_id = ?
        AND id = ?`,
     [
-      latitude,
-      longitude,
+      safeLatitude,
+      safeLongitude,
       organizationId,
       activityId,
     ]

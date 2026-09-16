@@ -15,15 +15,29 @@ const CROSS_ORG_ORGANIZATION_ID = 4;
 let server;
 let baseUrl;
 
-function createAuthCookie(
+async function createAuthCookie(
   userId,
   organizationId,
   roles
 ) {
+  const [rows] = await pool.execute(
+    `
+      SELECT token_version
+      FROM users
+      WHERE id = ?
+        AND organization_id = ?
+      LIMIT 1
+    `,
+    [userId, organizationId]
+  );
+
+  assert.equal(rows.length, 1);
+
   const token = generateAccessToken({
     id: userId,
     organization_id: organizationId,
     roles,
+    token_version: rows[0].token_version,
   });
 
   return `access_token=${token}`;
@@ -248,7 +262,7 @@ test(
           {
             method: request.method,
             headers: {
-              Cookie: createAuthCookie(
+              Cookie: await createAuthCookie(
                 OWNER_ID,
                 ORGANIZATION_ID,
                 ["OWNER"]
@@ -331,7 +345,7 @@ test(
       `${baseUrl}/api/audit-events`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             FIELD_WORKER_ID,
             ORGANIZATION_ID,
             ["FIELD_WORKER"]
@@ -364,7 +378,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_READ_TEST`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -442,7 +456,7 @@ test(
         `${baseUrl}/api/audit-events/${auditId}`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -504,7 +518,7 @@ test(
         `${baseUrl}/api/audit-events/${auditId}`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               CROSS_ORG_OWNER_ID,
               CROSS_ORG_ORGANIZATION_ID,
               ["OWNER"]
@@ -540,7 +554,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_READ_TEST`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               CROSS_ORG_OWNER_ID,
               CROSS_ORG_ORGANIZATION_ID,
               ["OWNER"]
@@ -609,7 +623,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -661,7 +675,7 @@ test(
         `${baseUrl}/api/audit-events?entityType=FILTER_ENTITY_A`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -712,7 +726,7 @@ test(
         `${baseUrl}/api/audit-events?entityId=111111`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -760,7 +774,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&entityType=FILTER_ENTITY_B`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -809,7 +823,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&limit=1&page=1`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -838,7 +852,7 @@ test(
         `${baseUrl}/api/audit-events?action=AUDIT_FILTER_ACTION_A&limit=1&page=2`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]
@@ -894,7 +908,7 @@ test(
       `${baseUrl}/api/audit-events?page=0`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             OWNER_ID,
             ORGANIZATION_ID,
             ["OWNER"]
@@ -918,7 +932,7 @@ test(
       `${baseUrl}/api/audit-events?limit=101`,
       {
         headers: {
-          Cookie: createAuthCookie(
+          Cookie: await createAuthCookie(
             OWNER_ID,
             ORGANIZATION_ID,
             ["OWNER"]
@@ -967,7 +981,7 @@ test(
         `${baseUrl}/api/audit-events?actorId=${FIELD_WORKER_ID}`,
         {
           headers: {
-            Cookie: createAuthCookie(
+            Cookie: await createAuthCookie(
               OWNER_ID,
               ORGANIZATION_ID,
               ["OWNER"]

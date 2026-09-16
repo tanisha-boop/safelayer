@@ -22,6 +22,7 @@ const auditRoutes = require("./routes/auditRoutes");
 const trustRoutes = require("./routes/trustRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const searchRoutes = require("./routes/searchRoutes");
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/api/audit-events", auditRoutes);
 app.use("/api/trust", trustRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/search", searchRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

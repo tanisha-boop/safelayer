@@ -70,7 +70,8 @@ async function verify(req, res, next) {
         req.user.organizationId,
         req.validated.params.id,
         req.validated.body.verificationStatus,
-        req.validated.body.verificationNotes
+        req.validated.body.verificationNotes,
+        req.user.id
       );
 
     res.json({

@@ -12,8 +12,9 @@ async function createEvidence({
   latitude,
   longitude,
   capturedAt,
+  connection = pool,
 }) {
-  const [result] = await pool.execute(
+  const [result] = await connection.execute(
     `
       INSERT INTO evidence (
         activity_id,
@@ -45,11 +46,11 @@ async function createEvidence({
     ]
   );
 
-  return findById(result.insertId);
+  return findById(result.insertId, connection);
 }
 
-async function findById(evidenceId) {
-  const [rows] = await pool.execute(
+async function findById(evidenceId, connection = pool) {
+  const [rows] = await connection.execute(
     `
       SELECT
         e.id,
@@ -94,8 +95,8 @@ async function findById(evidenceId) {
   return rows[0] || null;
 }
 
-async function findByActivity(activityId) {
-  const [rows] = await pool.execute(
+async function findByActivity(activityId, connection = pool) {
+  const [rows] = await connection.execute(
     `
       SELECT
         e.id,
@@ -136,9 +137,10 @@ async function findByActivity(activityId) {
 async function updateVerification(
   evidenceId,
   verificationStatus,
-  verificationNotes
+  verificationNotes,
+  connection = pool
 ) {
-  await pool.execute(
+  await connection.execute(
     `
       UPDATE evidence
       SET
@@ -153,7 +155,42 @@ async function updateVerification(
     ]
   );
 
-  return findById(evidenceId);
+  return findById(evidenceId, connection);
+}
+
+async function createAuditEvent({
+  organizationId,
+  actorId,
+  action,
+  entityType,
+  entityId,
+  oldValues,
+  newValues,
+  connection = pool,
+}) {
+  await connection.execute(
+    `
+      INSERT INTO audit_events (
+        organization_id,
+        actor_id,
+        action,
+        entity_type,
+        entity_id,
+        old_values,
+        new_values
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      organizationId,
+      actorId || null,
+      action,
+      entityType,
+      entityId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ]
+  );
 }
 
 module.exports = {
@@ -161,4 +198,5 @@ module.exports = {
   findById,
   findByActivity,
   updateVerification,
+  createAuditEvent,
 };

@@ -11,7 +11,8 @@ async function findUserByEmail(email) {
         email,
         password_hash,
         role,
-        is_active
+        is_active,
+        token_version
       FROM users
       WHERE email = ?
       LIMIT 1
@@ -33,8 +34,28 @@ async function findUserById(userId) {
         email,
         role,
         is_active,
+        token_version,
         created_at,
         updated_at
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
+}
+
+async function findUserAuthState(userId) {
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        id,
+        organization_id,
+        role,
+        is_active,
+        token_version
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -98,6 +119,7 @@ async function findUserByIdAndOrganization(userId, organizationId) {
         email,
         role,
         is_active,
+        token_version,
         created_at,
         updated_at
       FROM users
@@ -169,6 +191,7 @@ async function updateUser(
   if (role !== undefined) {
     fields.push("role = ?");
     values.push(role);
+    fields.push("token_version = token_version + 1");
   }
 
   if (fields.length === 0) {
@@ -200,7 +223,9 @@ async function deactivateUser(userId, organizationId) {
   const [result] = await pool.execute(
     `
       UPDATE users
-      SET is_active = 0
+      SET
+        is_active = 0,
+        token_version = token_version + 1
       WHERE id = ?
         AND organization_id = ?
     `,
@@ -334,6 +359,7 @@ async function replaceUserRole(userId, roleId) {
 module.exports = {
   findUserByEmail,
   findUserById,
+  findUserAuthState,
   findUsersByOrganization,
   findUserByIdAndOrganization,
   createUser,

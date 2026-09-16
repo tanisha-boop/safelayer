@@ -27,6 +27,8 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+    issuer: process.env.JWT_ISSUER || "safelayer-api",
+    audience: process.env.JWT_AUDIENCE || "safelayer-api",
   },
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
 };
