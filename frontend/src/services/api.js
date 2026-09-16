@@ -28,6 +28,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getDashboardOverview: () => request("/dashboard/overview"),
+  getReportsOverview: () => request("/reports/overview"),
+
   getMe: () => request("/auth/me"),
 
   login: (email, password) =>
@@ -159,6 +162,85 @@ export const api = {
 
   verifyRemittance: (id) =>
     request(`/field-ledger/remittances/${id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  getInvoices: (status, vendorName) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (vendorName) params.set("vendorName", vendorName);
+    const query = params.toString();
+    return request(`/invoices${query ? `?${query}` : ""}`);
+  },
+
+  getInvoice: (id) =>
+    request(`/invoices/${id}`),
+
+  createInvoice: (invoice) =>
+    request("/invoices", {
+      method: "POST",
+      body: JSON.stringify(invoice),
+    }),
+
+  verifyInvoice: (id) =>
+    request(`/invoices/${id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  reviewInvoice: (id, decision, resolution = "") =>
+    request(`/invoices/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify({ decision, resolution }),
+    }),
+
+  getNotifications: (page = 1, limit = 20) =>
+    request(`/notifications?page=${page}&limit=${limit}`),
+
+  getUnreadNotificationCount: () =>
+    request("/notifications/unread-count"),
+
+  markNotificationRead: (id) =>
+    request(`/notifications/${id}/read`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    }),
+
+  markAllNotificationsRead: () =>
+    request("/notifications/read-all", {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    }),
+
+  getReviews: (filters = {}) => {
+    const params = new URLSearchParams();
+
+    if (filters.status) params.set("status", filters.status);
+    if (filters.priority) params.set("priority", filters.priority);
+    if (filters.entityType) params.set("entityType", filters.entityType);
+    if (filters.page) params.set("page", filters.page);
+    if (filters.limit) params.set("limit", filters.limit);
+
+    const query = params.toString();
+
+    return request(`/reviews${query ? `?${query}` : ""}`);
+  },
+
+  getReview: (id) =>
+    request(`/reviews/${id}`),
+
+  updateReview: (id, changes) =>
+    request(`/reviews/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+
+  getTrustAssessment: (activityId) =>
+    request(`/trust/activity/${activityId}`),
+
+  assessTrust: (activityId) =>
+    request(`/trust/activity/${activityId}/assess`, {
       method: "POST",
       body: JSON.stringify({}),
     }),
