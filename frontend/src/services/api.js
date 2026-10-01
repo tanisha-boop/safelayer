@@ -53,6 +53,88 @@ export const api = {
 
   getUsers: () => request("/users"),
 
+    getComplianceRequirements: (filters = {}) => {
+    const params = new URLSearchParams();
+
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+
+    if (filters.requirementType) {
+      params.set("requirementType", filters.requirementType);
+    }
+
+    if (filters.search) {
+      params.set("search", filters.search);
+    }
+
+    const query = params.toString();
+
+    return request(
+      `/compliance/requirements${query ? `?${query}` : ""}`
+    );
+  },
+
+  getComplianceRequirement: (id) =>
+    request(`/compliance/requirements/${id}`),
+
+  createComplianceRequirement: (requirement) =>
+    request("/compliance/requirements", {
+      method: "POST",
+      body: JSON.stringify(requirement),
+    }),
+
+  updateComplianceRequirement: (id, changes) =>
+    request(`/compliance/requirements/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+
+  getComplianceEvidence: (requirementId) =>
+    request(`/compliance/requirements/${requirementId}/evidence`),
+
+  uploadComplianceEvidence: (
+    requirementId,
+    file,
+    { documentDate = "", expiryDate = "" } = {}
+  ) => {
+    const formData = new FormData();
+
+    formData.append("evidence", file);
+
+    if (documentDate) {
+      formData.append("documentDate", documentDate);
+    }
+
+    if (expiryDate) {
+      formData.append("expiryDate", expiryDate);
+    }
+
+    return request(
+      `/compliance/requirements/${requirementId}/evidence`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+  },
+
+  getComplianceEvidenceFileUrl: (id) =>
+    `${API_URL}/compliance/evidence/${id}/file`,
+
+  verifyComplianceEvidence: (
+    id,
+    verificationStatus,
+    verificationNotes = ""
+  ) =>
+    request(`/compliance/evidence/${id}/verify`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        verificationStatus,
+        verificationNotes,
+      }),
+    }),
+
   getEvidenceForActivity: (activityId) => request("/evidence/activity/" + activityId),
 
   getEvidence: (id) => request("/evidence/" + id),

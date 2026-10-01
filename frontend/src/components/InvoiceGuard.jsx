@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -98,7 +98,7 @@ export default function InvoiceGuard({ user }) {
 
   const [reviewResolution, setReviewResolution] = useState("");
 
-  async function loadInvoices() {
+  const loadInvoices = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -114,7 +114,7 @@ export default function InvoiceGuard({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [statusFilter, vendorFilter]);
 
   async function loadInvoice(id) {
     setDetailLoading(true);
@@ -130,9 +130,13 @@ export default function InvoiceGuard({ user }) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadInvoices();
-  }, [statusFilter]);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [loadInvoices]);
 
   async function handleCreate(event) {
     event.preventDefault();

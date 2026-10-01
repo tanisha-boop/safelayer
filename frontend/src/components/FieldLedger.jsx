@@ -104,6 +104,7 @@ export default function FieldLedger({ user }) {
 
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [selectedRemittance, setSelectedRemittance] = useState(null);
+
   const [selectedRemittanceId, setSelectedRemittanceId] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -238,18 +239,86 @@ export default function FieldLedger({ user }) {
     }
   }
 
-  useEffect(() => {
-    loadData();
-  }, [statusFilter]);
+useEffect(() => {
+  let cancelled = false;
 
-  useEffect(() => {
-    if (!selectedRemittanceId && remittances.length > 0) {
-      const firstRemittance = remittances[0];
+  async function load() {
+    setLoading(true);
+    setError("");
 
-      setSelectedRemittanceId(String(firstRemittance.id));
-      setSelectedRemittance(firstRemittance);
+    try {
+      const [
+        collectionResult,
+        activityResult,
+        userResult,
+        remittanceResult,
+      ] = await Promise.all([
+        api.getCollections(
+          statusFilter === "ALL" ? undefined : statusFilter
+        ),
+        api.getActivities(),
+        api.getUsers(),
+        api.getRemittances(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      setCollections(
+        Array.isArray(collectionResult?.data)
+          ? collectionResult.data
+          : Array.isArray(collectionResult)
+          ? collectionResult
+          : []
+      );
+
+      setActivities(
+        Array.isArray(activityResult?.data)
+          ? activityResult.data
+          : Array.isArray(activityResult)
+          ? activityResult
+          : []
+      );
+
+      setRemittances(
+        Array.isArray(remittanceResult?.data)
+          ? remittanceResult.data
+          : Array.isArray(remittanceResult)
+          ? remittanceResult
+          : []
+      );
+
+      const activeUsers = Array.isArray(userResult?.data)
+        ? userResult.data
+        : Array.isArray(userResult)
+        ? userResult
+        : [];
+
+      setUsers(
+        activeUsers.filter(
+          (item) => Number(item.is_active) === 1
+        )
+      );
+    } catch (err) {
+      if (!cancelled) {
+        setError(
+          err.message || "Unable to load FieldLedger data."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
     }
-  }, [remittances, selectedRemittanceId]);
+  }
+
+  load();
+
+  return () => {
+    cancelled = true;
+  };
+}, [statusFilter]);
 
   function clearMessages() {
     setError("");

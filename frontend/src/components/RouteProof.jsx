@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Crosshair,
@@ -21,7 +21,7 @@ function RouteProof({ user }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  async function loadActivities() {
+  const loadActivities = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -33,17 +33,17 @@ function RouteProof({ user }) {
 
       setActivities(list);
 
-      if (!selectedId && list.length > 0) {
-        setSelectedId(String(list[0].id));
+      if (list.length > 0) {
+        setSelectedId((current) => current || String(list[0].id));
       }
     } catch (err) {
       setError(err.message || "Unable to load activities.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function loadProof(id = selectedId) {
+  const loadProof = useCallback(async (id) => {
     if (!id) {
       setProof([]);
       return;
@@ -66,17 +66,27 @@ function RouteProof({ user }) {
     } finally {
       setLoadingProof(false);
     }
-  }
-
-  useEffect(() => {
-    loadActivities();
   }, []);
 
-  useEffect(() => {
-    if (selectedId) {
-      loadProof(selectedId);
-    }
-  }, [selectedId]);
+useEffect(() => {
+  const timer = setTimeout(() => {
+    loadActivities();
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [loadActivities]);
+
+useEffect(() => {
+  if (!selectedId) {
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    loadProof(selectedId);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [selectedId, loadProof]);
 
   function getLocation() {
     return new Promise((resolve, reject) => {

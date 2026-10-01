@@ -23,7 +23,7 @@ const trustRoutes = require("./routes/trustRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const searchRoutes = require("./routes/searchRoutes");
-
+const complianceRoutes = require("./routes/complianceRoutes");
 const app = express();
 
 app.set("trust proxy", 1);
@@ -67,7 +67,7 @@ app.use("/api/trust", trustRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/search", searchRoutes);
-
+app.use("/api/compliance", complianceRoutes);
 app.use((req, res) => {
   res.status(404).json({
     success: false,

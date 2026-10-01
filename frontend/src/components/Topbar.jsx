@@ -85,15 +85,20 @@ export default function Topbar({
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadNotifications();
+  }, 0);
 
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 30000);
+  const interval = setInterval(() => {
+    loadNotifications();
+  }, 30000);
 
-    return () => clearInterval(interval);
-  }, []);
+  return () => {
+    clearTimeout(timer);
+    clearInterval(interval);
+  };
+}, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -122,22 +127,22 @@ export default function Topbar({
   useEffect(() => {
     const query = searchQuery.trim();
 
-    if (!query) {
-      setSearchResults([]);
-      setSearchError("");
-      setSearchLoading(false);
-      return;
-    }
-
-    setSearchOpen(true);
-    setSearchLoading(true);
-    setSearchError("");
-
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
     }
 
     searchTimerRef.current = setTimeout(async () => {
+      if (!query) {
+        setSearchResults([]);
+        setSearchError("");
+        setSearchLoading(false);
+        return;
+      }
+
+      setSearchOpen(true);
+      setSearchLoading(true);
+      setSearchError("");
+
       try {
         const response = await api.search(query);
         setSearchResults(response?.data?.results || []);
@@ -148,7 +153,7 @@ export default function Topbar({
       } finally {
         setSearchLoading(false);
       }
-    }, 300);
+    }, query ? 300 : 0);
 
     return () => {
       if (searchTimerRef.current) {

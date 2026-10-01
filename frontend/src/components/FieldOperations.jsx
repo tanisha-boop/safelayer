@@ -53,7 +53,7 @@ function normalizeActivities(result) {
   return [];
 }
 
-export default function FieldOperations({ user }) {
+export default function FieldOperations() {
   const [activities, setActivities] = useState([]);
   const [collections, setCollections] = useState([]);
   const [paymentCollection, setPaymentCollection] = useState(null);
@@ -93,9 +93,13 @@ export default function FieldOperations({ user }) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadActivities();
-  }, []);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, []);
 
   const filteredActivities = useMemo(() => {
     const query = search.trim().toLowerCase();

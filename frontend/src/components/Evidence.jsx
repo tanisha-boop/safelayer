@@ -99,13 +99,25 @@ function Evidence({ user }) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadActivities();
-  }, []);
+  }, 0);
 
-  useEffect(() => {
+  return () => clearTimeout(timer);
+}, []);
+
+useEffect(() => {
+  if (!selectedActivityId) {
+    return;
+  }
+
+  const timer = setTimeout(() => {
     loadEvidence(selectedActivityId);
-  }, [selectedActivityId]);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [selectedActivityId]);
 
   async function handleUpload(event) {
     const file = event.target.files?.[0];

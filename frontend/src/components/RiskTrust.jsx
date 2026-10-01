@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -66,7 +66,7 @@ function signalValue(value) {
   return String(value);
 }
 
-export default function RiskTrust({ user }) {
+export default function RiskTrust() {
   const [activities, setActivities] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [assessment, setAssessment] = useState(null);
@@ -78,7 +78,7 @@ export default function RiskTrust({ user }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  async function loadActivities() {
+  const loadActivities = useCallback(async () => {
     try {
       setLoadingActivities(true);
       setError("");
@@ -88,8 +88,8 @@ export default function RiskTrust({ user }) {
 
       setActivities(rows);
 
-      if (!selectedId && rows.length > 0) {
-        setSelectedId(String(rows[0].id));
+      if (rows.length > 0) {
+        setSelectedId((current) => current || String(rows[0].id));
       }
     } catch (err) {
       setError(
@@ -98,7 +98,7 @@ export default function RiskTrust({ user }) {
     } finally {
       setLoadingActivities(false);
     }
-  }
+  }, []);
 
   async function loadAssessment(activityId) {
     if (!activityId) {
@@ -131,13 +131,25 @@ export default function RiskTrust({ user }) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadActivities();
-  }, []);
+  }, 0);
 
-  useEffect(() => {
+  return () => clearTimeout(timer);
+}, [loadActivities]);
+
+useEffect(() => {
+  if (!selectedId) {
+    return;
+  }
+
+  const timer = setTimeout(() => {
     loadAssessment(selectedId);
-  }, [selectedId]);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [selectedId]);
 
   async function assess() {
     if (!selectedId) return;

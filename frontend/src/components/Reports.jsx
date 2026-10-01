@@ -135,9 +135,13 @@ export default function Reports() {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadReport();
-  }, []);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, []);
 
   const maxTrend = useMemo(() => {
     if (!report?.trend?.length) {

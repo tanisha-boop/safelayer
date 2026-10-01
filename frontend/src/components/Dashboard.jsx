@@ -210,7 +210,29 @@ export default function Dashboard({ setActivePage, user }) {
   }
 
   useEffect(() => {
-    loadDashboard()
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await api.getDashboardOverview()
+
+        if (!cancelled) {
+          setDashboard(response.data)
+          setLoading(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Unable to load dashboard data.')
+          setLoading(false)
+        }
+      }
+    }
+
+    load()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const today = useMemo(

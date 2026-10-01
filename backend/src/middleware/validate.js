@@ -1,5 +1,15 @@
+const fs = require("fs/promises");
+
+async function removeUploadedFile(req) {
+  if (!req.file?.path) {
+    return;
+  }
+
+  await fs.unlink(req.file.path).catch(() => {});
+}
+
 function validate(schema) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const result = schema.safeParse({
       body: req.body ?? {},
       params: req.params ?? {},
@@ -7,6 +17,8 @@ function validate(schema) {
     });
 
     if (!result.success) {
+      await removeUploadedFile(req);
+
       return res.status(400).json({
         success: false,
         message: "Validation failed",

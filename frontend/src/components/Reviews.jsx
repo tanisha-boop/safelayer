@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -173,7 +173,7 @@ export default function Reviews({ user }) {
   const canResolve =
     ["OWNER", "ADMIN", "MANAGER"].includes(role);
 
-  async function loadReviews() {
+  const loadReviews = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -192,7 +192,7 @@ export default function Reviews({ user }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [status, priority, entityType]);
 
   async function openReview(id) {
     try {
@@ -213,9 +213,13 @@ export default function Reviews({ user }) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  const timer = setTimeout(() => {
     loadReviews();
-  }, [status, priority, entityType]);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [loadReviews]);
 
   async function updateSelected(changes) {
     if (!selectedReview) return;
