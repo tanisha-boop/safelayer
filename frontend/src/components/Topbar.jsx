@@ -172,6 +172,22 @@ useEffect(() => {
   }
 
   async function handleNotificationClick(notification) {
+    const pageByEntityType = {
+      COMPLIANCE_REQUIREMENT: "compliance",
+      COMPLIANCE_EVIDENCE: "compliance",
+      INVOICE: "invoice-guard",
+      FIELD_ACTIVITY: "field-operations",
+      EVIDENCE: "evidence",
+    };
+
+    const targetPage =
+      pageByEntityType[notification.entity_type];
+
+    if (targetPage) {
+      setActivePage(targetPage);
+      setNotificationsOpen(false);
+    }
+
     const isUnread =
       Number(notification.is_read) === 0 ||
       notification.is_read === false;
