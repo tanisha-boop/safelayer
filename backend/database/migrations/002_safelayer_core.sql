@@ -288,6 +288,31 @@ CREATE TABLE remittances (
 -- 9. TRANSACTION ↔ REMITTANCE
 -- ============================================================
 
+-- ============================================================
+-- 9A. REMITTANCE ITEMS
+-- ============================================================
+
+CREATE TABLE `remittance_items` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `organization_id` bigint(20) unsigned NOT NULL,
+  `remittance_id` bigint(20) unsigned NOT NULL,
+  `collection_id` bigint(20) unsigned NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_remittance_collection` (`remittance_id`,`collection_id`),
+  KEY `idx_remittance_item_org` (`organization_id`),
+  KEY `idx_remittance_item_remittance` (`remittance_id`),
+  KEY `idx_remittance_item_collection` (`collection_id`),
+  CONSTRAINT `fk_remittance_item_collection` FOREIGN KEY (`collection_id`) REFERENCES `collection_records` (`id`),
+  CONSTRAINT `fk_remittance_item_org` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`),
+  CONSTRAINT `fk_remittance_item_remittance` FOREIGN KEY (`remittance_id`) REFERENCES `remittances` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 10. REMITTANCE TRANSACTIONS
+-- ============================================================
+
 CREATE TABLE remittance_transactions (
     remittance_id BIGINT UNSIGNED NOT NULL,
     transaction_id BIGINT UNSIGNED NOT NULL,
@@ -456,6 +481,37 @@ CREATE TABLE invoice_evidence (
 
 -- ============================================================
 -- 13. REVIEWS
+-- ============================================================
+
+-- ============================================================
+-- 14A. RISK ASSESSMENTS
+-- ============================================================
+
+CREATE TABLE `risk_assessments` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `activity_id` bigint(20) unsigned DEFAULT NULL,
+  `invoice_id` bigint(20) unsigned DEFAULT NULL,
+  `assessment_type` enum('ACTIVITY','INVOICE') NOT NULL DEFAULT 'ACTIVITY',
+  `trust_score` decimal(5,2) NOT NULL,
+  `risk_level` enum('LOW','MEDIUM','HIGH','CRITICAL') NOT NULL,
+  `location_verified` tinyint(1) DEFAULT 0,
+  `timestamp_verified` tinyint(1) DEFAULT 0,
+  `duplicate_detected` tinyint(1) DEFAULT 0,
+  `document_verified` tinyint(1) DEFAULT 0,
+  `requires_review` tinyint(1) DEFAULT 0,
+  `explanation` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`explanation`)),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_risk_activity` (`activity_id`),
+  KEY `idx_risk_level` (`risk_level`),
+  KEY `idx_risk_review` (`requires_review`),
+  KEY `idx_risk_invoice` (`invoice_id`),
+  CONSTRAINT `fk_risk_activity` FOREIGN KEY (`activity_id`) REFERENCES `field_activities` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_risk_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 15. REVIEWS
 -- ============================================================
 
 CREATE TABLE reviews (

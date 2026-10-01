@@ -130,6 +130,9 @@ Current migration sequence:
 3. `003_seed_rbac.sql`
 4. `004_evidence_enhancement.sql`
 5. `005_notifications.sql`
+6. `006_compliance.sql`
+7. `007_compliance_rbac.sql`
+8. `008_compliance_duplicate_evidence.sql`
 
 Each migration represents a controlled stage of database evolution.
 

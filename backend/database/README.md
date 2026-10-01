@@ -14,6 +14,10 @@ Database changes are maintained as ordered SQL migrations:
 003_seed_rbac.sql
 004_evidence_enhancement.sql
 005_notifications.sql
+006_compliance.sql
+007_compliance_rbac.sql
+008_compliance_duplicate_evidence.sql
+```
 
 Each migration represents a controlled stage of database evolution.
 
