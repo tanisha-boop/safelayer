@@ -1,0 +1,143 @@
+name: SafeLayer CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  backend:
+    name: Backend tests and database verification
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mariadb:10.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: safelayer
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      PORT: 5001
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: safelayer
+      DB_USER: root
+      DB_PASSWORD: root
+      JWT_SECRET: ci-test-secret-change-me
+      JWT_ISSUER: safelayer-api
+      JWT_AUDIENCE: safelayer-api
+      JWT_EXPIRES_IN: 1h
+      FRONTEND_URL: http://localhost:5173
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Verify MySQL
+        run: |
+          mysql \
+            --host=127.0.0.1 \
+            --port=3306 \
+            --user=root \
+            --password=root \
+            -e "SELECT VERSION();"
+
+      - name: Run database migrations
+        run: |
+          set -e
+
+          for migration in backend/database/migrations/*.sql; do
+            echo "=================================================="
+            echo "Running migration: $migration"
+            echo "=================================================="
+
+            mysql \
+              --host=127.0.0.1 \
+              --port=3306 \
+              --user=root \
+              --password=root \
+              < "$migration"
+          done
+
+      - name: Verify database schema
+        run: |
+          set -e
+
+          TABLE_COUNT=$(
+            mysql \
+              --host=127.0.0.1 \
+              --port=3306 \
+              --user=root \
+              --password=root \
+              --batch \
+              --skip-column-names \
+              -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'safelayer';"
+          )
+
+          echo "SafeLayer table count: $TABLE_COUNT"
+
+          test "$TABLE_COUNT" -eq 25
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+      - name: Backend dependency audit
+        working-directory: backend
+        run: npm audit --omit=dev
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Frontend dependency audit
+        working-directory: frontend
+        run: npm audit --omit=dev
