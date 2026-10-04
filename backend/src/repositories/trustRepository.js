@@ -7,9 +7,10 @@ async function getConnection() {
 
 async function findActivityContext(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         fa.id,
@@ -47,9 +48,10 @@ async function findActivityContext(
 
 async function findRouteProofEvents(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         id,
@@ -72,9 +74,10 @@ async function findRouteProofEvents(
 
 async function findEvidence(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         e.id,
@@ -108,9 +111,10 @@ async function findEvidence(
 
 async function findCollections(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         id,
@@ -133,9 +137,10 @@ async function findCollections(
 
 async function findTransactions(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         id,
@@ -160,9 +165,10 @@ async function findTransactions(
 
 async function findRemittances(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         r.id,
@@ -207,9 +213,10 @@ async function findRemittances(
 
 async function findInvoices(
   organizationId,
-  activityId
+  activityId,
+  connection = pool
 ) {
-  const [rows] = await pool.execute(
+  const [rows] = await connection.execute(
     `
       SELECT
         id,

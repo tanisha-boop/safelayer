@@ -995,3 +995,324 @@ test(
     }
   }
 );
+
+
+async function countOpenActivityReviews(
+  connection,
+  activityId
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT COUNT(*) AS count
+      FROM reviews
+      WHERE organization_id = ?
+        AND activity_id = ?
+        AND status IN ('OPEN', 'IN_REVIEW')
+    `,
+    [
+      ORGANIZATION_ID,
+      activityId,
+    ]
+  );
+
+  return Number(rows[0].count);
+}
+
+async function countActivityRiskAssessments(
+  connection,
+  activityId
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT COUNT(*) AS count
+      FROM risk_assessments
+      WHERE activity_id = ?
+        AND assessment_type = 'ACTIVITY'
+    `,
+    [activityId]
+  );
+
+  return Number(rows[0].count);
+}
+
+async function getTrustNotifications(
+  connection,
+  activityId
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        user_id,
+        organization_id,
+        type,
+        title,
+        message,
+        entity_type,
+        entity_id
+      FROM notifications
+      WHERE organization_id = ?
+        AND entity_type = 'FIELD_ACTIVITY'
+        AND entity_id = ?
+        AND type = 'TRUST_ASSESSMENT_REQUIRES_REVIEW'
+      ORDER BY id ASC
+    `,
+    [
+      ORGANIZATION_ID,
+      activityId,
+    ]
+  );
+
+  return rows;
+}
+
+async function getExpectedTrustNotificationRecipients(
+  connection
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT DISTINCT
+        u.id
+      FROM users u
+      INNER JOIN user_roles ur
+        ON ur.user_id = u.id
+      INNER JOIN roles r
+        ON r.id = ur.role_id
+      WHERE u.organization_id = ?
+        AND u.is_active = 1
+        AND r.name IN (
+          'OWNER',
+          'ADMIN',
+          'MANAGER',
+          'FINANCE'
+        )
+      ORDER BY u.id
+    `,
+    [ORGANIZATION_ID]
+  );
+
+  return rows.map((user) => Number(user.id));
+}
+
+async function cleanupTrustNotifications(
+  connection,
+  activityId
+) {
+  await connection.execute(
+    `
+      DELETE FROM notifications
+      WHERE organization_id = ?
+        AND entity_type = 'FIELD_ACTIVITY'
+        AND entity_id = ?
+        AND type = 'TRUST_ASSESSMENT_REQUIRES_REVIEW'
+    `,
+    [
+      ORGANIZATION_ID,
+      activityId,
+    ]
+  );
+}
+
+
+test(
+  "concurrent trust assessments create one review and one notification per recipient",
+  async () => {
+    const connection = await pool.getConnection();
+
+    let activityId;
+
+    try {
+      activityId = await createActivity(
+        connection,
+        "CONCURRENT"
+      );
+    } finally {
+      connection.release();
+    }
+
+    try {
+      const cookie = await createAuthCookie(
+        OWNER_ID,
+        ORGANIZATION_ID,
+        "OWNER"
+      );
+
+      const headers = {
+        Cookie: cookie,
+      };
+
+      const [first, second] = await Promise.all([
+        fetch(
+          `${baseUrl}/api/trust/activity/${activityId}/assess`,
+          {
+            method: "POST",
+            headers,
+          }
+        ),
+        fetch(
+          `${baseUrl}/api/trust/activity/${activityId}/assess`,
+          {
+            method: "POST",
+            headers,
+          }
+        ),
+      ]);
+
+      assert.equal(
+        first.status,
+        201,
+        "First concurrent Trust assessment must succeed"
+      );
+
+      assert.equal(
+        second.status,
+        201,
+        "Second concurrent Trust assessment must succeed"
+      );
+
+      const firstBody =
+        await first.json();
+
+      const secondBody =
+        await second.json();
+
+      assert.equal(
+        firstBody.success,
+        true
+      );
+
+      assert.equal(
+        secondBody.success,
+        true
+      );
+
+      assert.equal(
+        firstBody.data.requiresReview,
+        true
+      );
+
+      assert.equal(
+        secondBody.data.requiresReview,
+        true
+      );
+
+      assert.equal(
+        firstBody.data.reviewId,
+        secondBody.data.reviewId,
+        "Concurrent assessments must reuse the same open review"
+      );
+
+      const checkConnection =
+        await pool.getConnection();
+
+      try {
+        const openReviewCount =
+          await countOpenActivityReviews(
+            checkConnection,
+            activityId
+          );
+
+        assert.equal(
+          openReviewCount,
+          1,
+          "Concurrent Trust assessments must create exactly one open review"
+        );
+
+        const assessmentCount =
+          await countActivityRiskAssessments(
+            checkConnection,
+            activityId
+          );
+
+        assert.equal(
+          assessmentCount,
+          2,
+          "Both concurrent assessments should be persisted"
+        );
+
+        const reviewCreatedAuditCount =
+          await countReviewCreatedAudits(
+            checkConnection,
+            firstBody.data.reviewId
+          );
+
+        assert.equal(
+          reviewCreatedAuditCount,
+          1,
+          "Concurrent Trust assessments must create exactly one REVIEW_CREATED audit"
+        );
+
+        const notifications =
+          await getTrustNotifications(
+            checkConnection,
+            activityId
+          );
+
+        const expectedRecipients =
+          await getExpectedTrustNotificationRecipients(
+            checkConnection
+          );
+
+        const actualRecipients =
+          notifications
+            .map((notification) =>
+              Number(notification.user_id)
+            )
+            .sort((a, b) => a - b);
+
+        assert.deepEqual(
+          actualRecipients,
+          expectedRecipients,
+          "Exactly one notification must exist for each eligible management/finance recipient"
+        );
+
+        assert.equal(
+          notifications.length,
+          expectedRecipients.length,
+          "Concurrent Trust assessments must not duplicate notifications"
+        );
+
+        for (const notification of notifications) {
+          assert.equal(
+            notification.organization_id,
+            ORGANIZATION_ID
+          );
+
+          assert.equal(
+            notification.type,
+            "TRUST_ASSESSMENT_REQUIRES_REVIEW"
+          );
+
+          assert.equal(
+            notification.entity_type,
+            "FIELD_ACTIVITY"
+          );
+
+          assert.equal(
+            Number(notification.entity_id),
+            Number(activityId)
+          );
+        }
+      } finally {
+        checkConnection.release();
+      }
+    } finally {
+      const cleanupConnection =
+        await pool.getConnection();
+
+      try {
+        await cleanupTrustNotifications(
+          cleanupConnection,
+          activityId
+        );
+
+        await cleanupActivity(
+          cleanupConnection,
+          activityId
+        );
+      } finally {
+        cleanupConnection.release();
+      }
+    }
+  }
+);

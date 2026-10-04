@@ -4,6 +4,10 @@ const trustRepository =
 const reviewService =
   require("./reviewService");
 
+const {
+  notifyManagersAndFinance,
+} = require("./notificationEventService");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -535,12 +539,14 @@ function calculateTrustScore({
 
 async function buildAssessment(
   organizationId,
-  activityId
+  activityId,
+  connection
 ) {
   const activity =
     await trustRepository.findActivityContext(
       organizationId,
-      activityId
+      activityId,
+      connection
     );
 
   if (!activity) {
@@ -560,27 +566,33 @@ async function buildAssessment(
   ] = await Promise.all([
     trustRepository.findRouteProofEvents(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
     trustRepository.findEvidence(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
     trustRepository.findCollections(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
     trustRepository.findTransactions(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
     trustRepository.findRemittances(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
     trustRepository.findInvoices(
       organizationId,
-      activityId
+      activityId,
+      connection
     ),
   ]);
 
@@ -609,6 +621,21 @@ async function assessActivity({
   try {
     await connection.beginTransaction();
 
+    // Serialize trust assessments for the same activity.
+    // This prevents concurrent assessments from both seeing
+    // "no open review" and inserting duplicate reviews.
+    await connection.execute(
+      `
+        SELECT id
+        FROM field_activities
+        WHERE organization_id = ?
+          AND id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [organizationId, activityId]
+    );
+
     const { activity, assessment } =
       await buildAssessment(
         organizationId,
@@ -631,6 +658,7 @@ async function assessActivity({
       });
 
     let reviewId = null;
+    let reviewCreated = false;
 
     if (assessment.requiresReview) {
       const priority =
@@ -648,11 +676,11 @@ async function assessActivity({
           .join(" ");
 
       const existingReview =
-          await reviewService.findOpenReviewByEntity({
-            organizationId,
-            activityId,
-            connection,
-          });
+        await reviewService.findOpenReviewByEntity({
+          organizationId,
+          activityId,
+          connection,
+        });
 
       if (existingReview) {
         reviewId = existingReview.id;
@@ -671,6 +699,7 @@ async function assessActivity({
           });
 
         reviewId = review.id;
+        reviewCreated = true;
       }
     }
 
@@ -689,6 +718,21 @@ async function assessActivity({
       },
       connection,
     });
+
+    if (reviewCreated) {
+      await notifyManagersAndFinance({
+        organizationId,
+        type: "TRUST_ASSESSMENT_REQUIRES_REVIEW",
+        title: "Trust assessment requires review",
+        message:
+          `Activity ${activityId} has a ` +
+          `${assessment.riskLevel} trust assessment ` +
+          "and requires human review.",
+        entityType: "FIELD_ACTIVITY",
+        entityId: activityId,
+        connection,
+      });
+    }
 
     await connection.commit();
 
