@@ -227,6 +227,62 @@ async function getInvoiceReview(
   return rows[0] || null;
 }
 
+async function getInvoiceNotifications(
+  connection,
+  invoiceId
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        user_id,
+        organization_id,
+        type,
+        title,
+        message,
+        entity_type,
+        entity_id
+      FROM notifications
+      WHERE organization_id = ?
+        AND entity_type = 'INVOICE'
+        AND entity_id = ?
+        AND type = 'INVOICE_REQUIRES_REVIEW'
+      ORDER BY id ASC
+    `,
+    [ORGANIZATION_ID, invoiceId]
+  );
+
+  return rows;
+}
+
+async function getExpectedInvoiceNotificationRecipients(
+  connection
+) {
+  const [rows] = await connection.execute(
+    `
+      SELECT DISTINCT
+        u.id
+      FROM users u
+      INNER JOIN user_roles ur
+        ON ur.user_id = u.id
+      INNER JOIN roles r
+        ON r.id = ur.role_id
+      WHERE u.organization_id = ?
+        AND u.is_active = 1
+        AND r.name IN (
+          'OWNER',
+          'ADMIN',
+          'MANAGER',
+          'FINANCE'
+        )
+      ORDER BY u.id
+    `,
+    [ORGANIZATION_ID]
+  );
+
+  return rows.map((user) => Number(user.id));
+}
+
 async function countOpenInvoiceReviews(
   connection,
   invoiceId
@@ -279,6 +335,16 @@ async function cleanupInvoice(
   if (!invoiceId) {
     return;
   }
+
+  await connection.execute(
+    `
+      DELETE FROM notifications
+      WHERE organization_id = ?
+        AND entity_type = 'INVOICE'
+        AND entity_id = ?
+    `,
+    [ORGANIZATION_ID, invoiceId]
+  );
 
   await connection.execute(
     `
@@ -614,6 +680,7 @@ test(
           cleanupConnection,
           invoiceId
         );
+
       } finally {
         cleanupConnection.release();
       }
@@ -983,6 +1050,179 @@ test(
         await cleanupInvoice(
           cleanupConnection,
           existingInvoiceId
+        );
+      } finally {
+        cleanupConnection.release();
+      }
+    }
+  }
+);
+
+test(
+  "concurrent high-risk invoice verification creates one review and one notification per recipient",
+  async () => {
+    const connection = await pool.getConnection();
+
+    let invoiceId;
+    let duplicateInvoiceId;
+
+    try {
+      duplicateInvoiceId =
+        await createInvoiceFixture(
+          connection,
+          {
+            vendorName:
+              "Concurrent Verification Vendor",
+            invoiceNumber:
+              `IG-CONCURRENT-DUP-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 8)}`,
+            invoiceDate: "2026-09-01",
+            dueDate: "2026-09-30",
+            amount: 7777,
+          }
+        );
+
+      invoiceId =
+        await createInvoiceFixture(
+          connection,
+          {
+            vendorName:
+              "Concurrent Verification Vendor",
+            invoiceNumber:
+              `IG-CONCURRENT-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 8)}`,
+            invoiceDate: null,
+            dueDate: null,
+            amount: 7777,
+          }
+        );
+    } finally {
+      connection.release();
+    }
+
+    try {
+      const cookie = await createAuthCookie(
+        OWNER_ID,
+        ORGANIZATION_ID,
+        "OWNER"
+      );
+
+      const headers = {
+        Cookie: cookie,
+      };
+
+      const [first, second] =
+        await Promise.all([
+          request(
+            `/api/invoices/${invoiceId}/verify`,
+            {
+              method: "POST",
+              headers,
+            }
+          ),
+          request(
+            `/api/invoices/${invoiceId}/verify`,
+            {
+              method: "POST",
+              headers,
+            }
+          ),
+        ]);
+
+      assert.equal(first.status, 200);
+      assert.equal(second.status, 200);
+
+      const checkConnection =
+        await pool.getConnection();
+
+      try {
+        const openReviewCount =
+          await countOpenInvoiceReviews(
+            checkConnection,
+            invoiceId
+          );
+
+        assert.equal(
+          openReviewCount,
+          1,
+          "Concurrent verification must create exactly one open review"
+        );
+
+        const notifications =
+          await getInvoiceNotifications(
+            checkConnection,
+            invoiceId
+          );
+
+        const expectedRecipients =
+          await getExpectedInvoiceNotificationRecipients(
+            checkConnection
+          );
+
+        const actualRecipients =
+          notifications
+            .map((notification) =>
+              Number(notification.user_id)
+            )
+            .sort((a, b) => a - b);
+
+        assert.deepEqual(
+          actualRecipients,
+          expectedRecipients,
+          "Exactly one notification must exist for each eligible management/finance recipient"
+        );
+
+        assert.equal(
+          notifications.length,
+          expectedRecipients.length,
+          "Concurrent verification must not duplicate notifications"
+        );
+
+        for (const notification of notifications) {
+          assert.equal(
+            notification.organization_id,
+            ORGANIZATION_ID
+          );
+
+          assert.equal(
+            notification.type,
+            "INVOICE_REQUIRES_REVIEW"
+          );
+
+          assert.equal(
+            notification.entity_type,
+            "INVOICE"
+          );
+
+          assert.equal(
+            Number(notification.entity_id),
+            Number(invoiceId)
+          );
+        }
+
+        const invoice =
+          await getInvoice(
+            checkConnection,
+            invoiceId
+          );
+
+        assert.equal(
+          invoice.status,
+          "REQUIRES_REVIEW"
+        );
+      } finally {
+        checkConnection.release();
+      }
+    } finally {
+      const cleanupConnection =
+        await pool.getConnection();
+
+      try {
+        await cleanupInvoice(
+          cleanupConnection,
+          invoiceId
         );
       } finally {
         cleanupConnection.release();

@@ -249,7 +249,8 @@ async function verifyInvoice({
       await invoiceRepository.findById(
         organizationId,
         invoiceId,
-        connection
+        connection,
+        { forUpdate: true }
       );
 
     if (!invoice) {

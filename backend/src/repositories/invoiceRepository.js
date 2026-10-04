@@ -7,8 +7,13 @@ async function getConnection() {
 async function findById(
   organizationId,
   invoiceId,
-  connection = pool
+  connection = pool,
+  { forUpdate = false } = {}
 ) {
+  const lockClause = forUpdate
+    ? "FOR UPDATE"
+    : "";
+
   const [rows] = await connection.execute(
     `
       SELECT
@@ -39,6 +44,8 @@ async function findById(
         AND i.id = ?
 
       LIMIT 1
+
+      ${lockClause}
     `,
     [organizationId, invoiceId]
   );
