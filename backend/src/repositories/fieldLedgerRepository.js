@@ -204,29 +204,6 @@ async function createTransaction(
   return result.insertId;
 }
 
-async function findTransactionByActivity(
-  connection,
-  organizationId,
-  activityId
-) {
-  const [rows] = await connection.execute(
-    `SELECT *
-     FROM transactions
-     WHERE organization_id = ?
-       AND activity_id = ?
-       AND transaction_type = 'COLLECTION'
-     ORDER BY id DESC
-     LIMIT 1`,
-    [
-      organizationId,
-      activityId,
-    ]
-  );
-
-  return rows[0] || null;
-}
-
-
 async function findTransactionByReference(
   connection,
   organizationId,
@@ -250,6 +227,7 @@ async function findTransactionByReference(
       FROM transactions
       WHERE organization_id = ?
         AND transaction_reference = ?
+        AND transaction_type = 'COLLECTION'
       LIMIT 1
     `,
     [organizationId, transactionReference]
@@ -554,18 +532,21 @@ async function submitRemittance(
   organizationId,
   remittanceId
 ) {
-  await connection.execute(
+  const [result] = await connection.execute(
     `UPDATE remittances
      SET
        status = 'SUBMITTED',
        submitted_at = NOW()
      WHERE organization_id = ?
-       AND id = ?`,
+       AND id = ?
+       AND status = 'PENDING'`,
     [
       organizationId,
       remittanceId,
     ]
   );
+
+  return result.affectedRows;
 }
 
 async function verifyRemittance(
@@ -693,7 +674,6 @@ module.exports = {
   findCollectionForUpdate,
   updateCollectionAmount,
   createTransaction,
-  findTransactionByActivity,
   findTransactionByReference,
   updateTransaction,
   createRemittance,

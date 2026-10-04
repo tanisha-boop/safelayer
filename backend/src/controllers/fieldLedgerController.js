@@ -89,6 +89,25 @@ async function createRemittance(req, res, next) {
   }
 }
 
+async function submitRemittance(req, res, next) {
+  try {
+    const result =
+      await fieldLedgerService.submitRemittance(
+        req.user.organizationId,
+        req.user,
+        req.validated.params.id
+      );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
 async function addRemittanceItem(req, res, next) {
   try {
     const result =
@@ -166,6 +185,7 @@ module.exports = {
   getCollection,
   collectPayment,
   createRemittance,
+  submitRemittance,
   addRemittanceItem,
   verifyRemittance,
   listRemittances,

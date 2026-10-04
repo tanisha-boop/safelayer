@@ -146,9 +146,16 @@ export default function FieldLedger({ user }) {
     user?.role
   );
 
-  const canVerifyRemittance = ["OWNER", "ADMIN", "FINANCE"].includes(
+  const canCreateRemittance = ["OWNER", "ADMIN", "FIELD_WORKER"].includes(
     user?.role
   );
+
+  const canVerifyRemittance = [
+    "OWNER",
+    "ADMIN",
+    "MANAGER",
+    "FINANCE",
+  ].includes(user?.role);
 
   const activeFieldWorkers = useMemo(
     () =>
@@ -428,8 +435,17 @@ useEffect(() => {
     setSaving(true);
 
     try {
+      const collectorId =
+        user?.role === "FIELD_WORKER"
+          ? Number(user.id)
+          : Number(remittanceForm.collectorId);
+
+      if (!collectorId) {
+        throw new Error("A collector is required.");
+      }
+
       const result = await api.createRemittance({
-        collectorId: Number(remittanceForm.collectorId),
+        collectorId,
         remittanceReference: remittanceForm.remittanceReference.trim(),
         declaredAmount: Number(remittanceForm.declaredAmount),
       });
@@ -540,6 +556,56 @@ useEffect(() => {
     }
   }
 
+  async function handleSubmitRemittance() {
+    if (!selectedRemittance?.id) {
+      return;
+    }
+
+    if (selectedRemittance.status !== "PENDING") {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Submit this remittance for verification? You will not be able to add or change collected records after submission."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    clearMessages();
+    setSaving(true);
+
+    try {
+      const result = await api.submitRemittance(
+        selectedRemittance.id
+      );
+
+      const responseData =
+        result?.data || result;
+
+      setSelectedRemittance(
+        responseData?.remittance ||
+        responseData
+      );
+
+      setSuccess(
+        "Remittance submitted for verification."
+      );
+
+      await loadData();
+      await refreshRemittance();
+    } catch (err) {
+      setError(
+        err.message ||
+        "Unable to submit remittance."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
   async function handleVerifyRemittance() {
     if (!selectedRemittance?.id) {
       return;
@@ -645,17 +711,19 @@ useEffect(() => {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              clearMessages();
-              setShowRemittanceForm(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
-          >
-            <Send size={16} />
-            New Remittance
-          </button>
+          {canCreateRemittance && (
+            <button
+              type="button"
+              onClick={() => {
+                clearMessages();
+                setShowRemittanceForm(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
+            >
+              <Send size={16} />
+              New Remittance
+            </button>
+          )}
         </div>
       </div>
 
@@ -861,17 +929,19 @@ useEffect(() => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  clearMessages();
-                  setShowRemittanceForm(true);
-                }}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white"
-              >
-                <Plus size={15} />
-                New Remittance
-              </button>
+              {canCreateRemittance && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearMessages();
+                    setShowRemittanceForm(true);
+                  }}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white"
+                >
+                  <Plus size={15} />
+                  New Remittance
+                </button>
+              )}
             </div>
 
             {remittances.length > 0 ? (
@@ -974,6 +1044,39 @@ useEffect(() => {
                 </p>
               </div>
 
+              {selectedRemittance.status === "SUBMITTED" && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-sm font-semibold text-blue-800">
+                    Waiting for verification
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-blue-700">
+                    This cash turnover has been submitted and is now locked for editing until an authorized verifier completes the reconciliation.
+                  </p>
+                </div>
+              )}
+
+              {selectedRemittance.status === "VERIFIED" && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Remittance verified
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-emerald-700">
+                    The declared cash matched the collected records and the included collections were reconciled.
+                  </p>
+                </div>
+              )}
+
+              {selectedRemittance.status === "DISPUTED" && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-800">
+                    Remittance disputed
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-red-700">
+                    A cash variance was detected. The transaction has been escalated for review.
+                  </p>
+                </div>
+              )}
+
               <form
                 onSubmit={handleAddRemittanceItem}
                 className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-5"
@@ -1018,10 +1121,29 @@ useEffect(() => {
                 </button>
               </form>
 
-              {canVerifyRemittance &&
-                ["PENDING", "SUBMITTED"].includes(
-                  selectedRemittance.status
-                ) && (
+              {selectedRemittance.status === "PENDING" &&
+                (Number(selectedRemittance.collector_id) === Number(user?.id) ||
+                  ["OWNER", "ADMIN"].includes(user?.role)) && (
+                  <button
+                    type="button"
+                    onClick={handleSubmitRemittance}
+                    disabled={
+                      saving ||
+                      Number(selectedRemittance.expected_amount || 0) <= 0
+                    }
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                    Submit for Verification
+                  </button>
+                )}
+
+              {selectedRemittance.status === "SUBMITTED" &&
+                canVerifyRemittance && (
                   <button
                     type="button"
                     onClick={handleVerifyRemittance}
@@ -1374,7 +1496,7 @@ useEffect(() => {
 
                 <input
                   required
-                  min="0"
+                  min="0.01"
                   step="0.01"
                   type="number"
                   value={paymentForm.collectedAmount}
@@ -1435,7 +1557,7 @@ useEffect(() => {
         </div>
       )}
 
-      {showRemittanceForm && (
+      {showRemittanceForm && canCreateRemittance && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 p-4">
           <form
             onSubmit={handleCreateRemittance}
@@ -1467,25 +1589,37 @@ useEffect(() => {
                   Collector
                 </label>
 
-                <select
-                  required
-                  value={remittanceForm.collectorId}
-                  onChange={(event) =>
-                    setRemittanceForm((current) => ({
-                      ...current,
-                      collectorId: event.target.value,
-                    }))
-                  }
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-600"
-                >
-                  <option value="">Select collector</option>
+                {user?.role === "FIELD_WORKER" ? (
+                  <div className="mt-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-200">
+                    You
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={remittanceForm.collectorId}
+                    onChange={(event) =>
+                      setRemittanceForm((current) => ({
+                        ...current,
+                        collectorId: event.target.value,
+                      }))
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-600"
+                  >
+                    <option value="">Select collector</option>
 
-                  {activeFieldWorkers.map((worker) => (
-                    <option key={worker.id} value={worker.id}>
-                      {worker.first_name} {worker.last_name}
-                    </option>
-                  ))}
-                </select>
+                    {activeFieldWorkers.map((worker) => (
+                      <option key={worker.id} value={worker.id}>
+                        {worker.first_name} {worker.last_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {user?.role === "FIELD_WORKER" && (
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    This cash turnover will be assigned to your account.
+                  </p>
+                )}
               </div>
 
               <div>

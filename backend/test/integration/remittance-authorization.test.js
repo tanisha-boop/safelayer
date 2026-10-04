@@ -515,6 +515,95 @@ test.after(async () => {
 });
 
 test(
+  "MANAGER can verify a submitted remittance",
+  async () => {
+    const reference = `AUTO-AUTH-MANAGER-${Date.now()}`;
+
+    const {
+      remittanceId,
+      transactionId,
+      collectionId,
+    } = await createTestRemittance(
+      reference,
+      "SUBMITTED"
+    );
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/field-ledger/remittances/${remittanceId}/verify`,
+        {
+          method: "POST",
+          headers: {
+            Cookie: await createAuthCookie(
+              OWNER_ID,
+              ORGANIZATION_ID,
+              ["MANAGER"]
+            ),
+          },
+        }
+      );
+
+      assert.equal(response.status, 200);
+
+      const body = await response.json();
+
+      assert.equal(body.success, true);
+
+      const remittance =
+        await getRemittance(remittanceId);
+
+      assert.equal(
+        remittance.status,
+        "VERIFIED"
+      );
+      assert.ok(remittance.verified_by);
+      assert.ok(remittance.verified_at);
+
+      const [reconciliationRows] =
+        await pool.execute(
+          `
+            SELECT
+              status,
+              expected_amount,
+              actual_amount,
+              variance_amount
+            FROM reconciliations
+            WHERE organization_id = ?
+              AND remittance_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+          `,
+          [ORGANIZATION_ID, remittanceId]
+        );
+
+      assert.equal(reconciliationRows.length, 1);
+      assert.equal(
+        reconciliationRows[0].status,
+        "MATCHED"
+      );
+      assert.equal(
+        Number(reconciliationRows[0].expected_amount),
+        5000
+      );
+      assert.equal(
+        Number(reconciliationRows[0].actual_amount),
+        5000
+      );
+      assert.equal(
+        Number(reconciliationRows[0].variance_amount),
+        0
+      );
+    } finally {
+      await deleteTestRemittance(
+        remittanceId,
+        transactionId,
+        collectionId
+      );
+    }
+  }
+);
+
+test(
   "FIELD_WORKER cannot verify a remittance and no database changes occur",
   async () => {
     const reference = `AUTO-AUTH-FIELD-${Date.now()}`;

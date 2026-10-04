@@ -422,6 +422,146 @@ async function createRemittance(
   }
 }
 
+async function submitRemittance(
+  organizationId,
+  currentUser,
+  remittanceId
+) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const remittance =
+      await fieldLedgerRepository.findRemittanceForUpdate(
+        connection,
+        organizationId,
+        remittanceId
+      );
+
+    if (!remittance) {
+      throw createError(
+        "Remittance not found",
+        404
+      );
+    }
+
+    if (remittance.status !== "PENDING") {
+      throw createError(
+        "Only pending remittances can be submitted",
+        409
+      );
+    }
+
+    const isCollector =
+      Number(remittance.collector_id) ===
+      Number(currentUser.id);
+
+    const isElevated =
+      hasRole(currentUser, [
+        "OWNER",
+        "ADMIN",
+      ]);
+
+    if (!isCollector && !isElevated) {
+      throw createError(
+        "You are not authorized to submit this remittance",
+        403
+      );
+    }
+
+    const [itemRows] = await connection.execute(
+      `SELECT COUNT(*) AS item_count
+       FROM remittance_items
+       WHERE organization_id = ?
+         AND remittance_id = ?`,
+      [
+        organizationId,
+        remittanceId,
+      ]
+    );
+
+    const itemCount =
+      Number(itemRows[0]?.item_count || 0);
+
+    if (itemCount < 1) {
+      throw createError(
+        "A remittance must contain at least one collected record before submission",
+        400
+      );
+    }
+
+    const expectedAmount =
+      await fieldLedgerRepository.getRemittanceTotal(
+        connection,
+        organizationId,
+        remittanceId
+      );
+
+    if (expectedAmount <= 0) {
+      throw createError(
+        "A remittance must contain a positive expected amount",
+        400
+      );
+    }
+
+    const submitted =
+      await fieldLedgerRepository.submitRemittance(
+        connection,
+        organizationId,
+        remittanceId
+      );
+
+    if (!submitted) {
+      throw createError(
+        "Unable to submit remittance",
+        409
+      );
+    }
+
+    await fieldLedgerRepository.createAuditEvent(
+      connection,
+      {
+        organizationId,
+        actorId: currentUser.id,
+        action: "REMITTANCE_SUBMITTED",
+        entityType: "REMITTANCE",
+        entityId: remittanceId,
+        oldValues: {
+          status: remittance.status,
+          expected_amount:
+            Number(remittance.expected_amount),
+        },
+        newValues: {
+          status: "SUBMITTED",
+          expected_amount: expectedAmount,
+        },
+      }
+    );
+
+    await connection.commit();
+
+    return {
+      remittance:
+        await fieldLedgerRepository.findRemittanceById(
+          organizationId,
+          remittanceId
+        ),
+      items:
+        await fieldLedgerRepository.findRemittanceItems(
+          organizationId,
+          remittanceId
+        ),
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+
 async function addRemittanceItem(
   organizationId,
   currentUser,
@@ -537,10 +677,10 @@ async function addRemittanceItem(
     }
 
     const transaction =
-      await fieldLedgerRepository.findTransactionByActivity(
+      await fieldLedgerRepository.findTransactionByReference(
         connection,
         organizationId,
-        collection.activity_id
+        collection.reference_number
       );
 
     if (!transaction) {
@@ -627,11 +767,12 @@ async function verifyRemittance(
     !hasRole(currentUser, [
       "OWNER",
       "ADMIN",
+      "MANAGER",
       "FINANCE",
     ])
   ) {
     throw createError(
-      "Only finance or authorized administrators can verify remittances",
+      "You are not authorized to verify remittances",
       403
     );
   }
@@ -655,13 +796,16 @@ async function verifyRemittance(
       );
     }
 
-    if (
-      !["PENDING", "SUBMITTED"].includes(
-        remittance.status
-      )
-    ) {
+    if (["VERIFIED", "DISPUTED", "RESOLVED"].includes(remittance.status)) {
       throw createError(
         "This remittance has already been processed",
+        409
+      );
+    }
+
+    if (remittance.status !== "SUBMITTED") {
+      throw createError(
+        "Only submitted remittances can be verified",
         409
       );
     }
@@ -672,6 +816,13 @@ async function verifyRemittance(
         organizationId,
         remittanceId
       );
+
+    if (expectedAmount <= 0) {
+      throw createError(
+        "A remittance must contain at least one collected record before verification",
+        400
+      );
+    }
 
     const actualAmount =
       Number(remittance.actual_amount);
@@ -872,6 +1023,7 @@ module.exports = {
   getCollection,
   collectPayment,
   createRemittance,
+  submitRemittance,
   addRemittanceItem,
   verifyRemittance,
   listRemittances,

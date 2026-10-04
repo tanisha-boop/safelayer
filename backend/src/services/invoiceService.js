@@ -4,6 +4,9 @@ const invoiceRepository =
 const reviewService =
   require("./reviewService");
 
+const notificationEventService =
+  require("./notificationEventService");
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -358,6 +361,18 @@ async function verifyInvoice({
           });
 
         reviewId = review.id;
+
+        await notificationEventService.notifyManagersAndFinance({
+          organizationId,
+          type: "INVOICE_REQUIRES_REVIEW",
+          title: "Invoice requires review",
+          message:
+            `Invoice ${invoice.invoice_number} from ${invoice.vendor_name} ` +
+            `requires human review (${assessment.riskLevel} risk).`,
+          entityType: "INVOICE",
+          entityId: invoiceId,
+          connection,
+        });
       }
     }
 
@@ -431,12 +446,7 @@ async function reviewInvoice({
     );
   }
 
-  if (
-    ![
-      "REQUIRES_REVIEW",
-      "PENDING",
-    ].includes(invoice.status)
-  ) {
+  if (invoice.status !== "REQUIRES_REVIEW") {
     throw createError(
       "This invoice is not awaiting review",
       409

@@ -62,7 +62,7 @@ test.before(async () => {
           actual_amount,
           status
         )
-        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        VALUES (?, ?, ?, ?, ?, 'SUBMITTED')
       `,
       [
         ORGANIZATION_ID,

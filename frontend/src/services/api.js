@@ -238,6 +238,12 @@ export const api = {
 
   getRemittances: () => request("/field-ledger/remittances"),
 
+  submitRemittance: (id) =>
+    request(`/field-ledger/remittances/${id}/submit`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   getRemittance: (id) =>
     request(`/field-ledger/remittances/${id}`),
 

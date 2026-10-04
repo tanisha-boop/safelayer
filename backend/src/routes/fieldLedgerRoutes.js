@@ -12,6 +12,7 @@ const {
   createCollectionSchema,
   collectPaymentSchema,
   createRemittanceSchema,
+  submitRemittanceSchema,
   addRemittanceItemSchema,
   getCollectionSchema,
   getRemittanceSchema,
@@ -60,6 +61,13 @@ router.get(
   "/remittances",
   authorize("remittances:read"),
   controller.listRemittances
+);
+
+router.post(
+  "/remittances/:id/submit",
+  authorize("remittances:create"),
+  validate(submitRemittanceSchema),
+  controller.submitRemittance
 );
 
 router.get(

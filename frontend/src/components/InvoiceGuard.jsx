@@ -240,11 +240,13 @@ useEffect(() => {
 
   const canCreate =
     user?.role === "OWNER" ||
-    user?.role === "MANAGER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "FIELD_WORKER" ||
     user?.role === "FINANCE";
 
   const canReview =
     user?.role === "OWNER" ||
+    user?.role === "ADMIN" ||
     user?.role === "MANAGER" ||
     user?.role === "FINANCE";
 

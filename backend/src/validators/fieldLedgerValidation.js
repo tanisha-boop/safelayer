@@ -36,7 +36,7 @@ const createRemittanceSchema = z.object({
   body: z.object({
     collectorId: z.coerce.number().int().positive(),
     remittanceReference: z.string().trim().min(3).max(100),
-    declaredAmount: z.coerce.number().nonnegative().max(999999999.99),
+    declaredAmount: z.coerce.number().positive().max(999999999.99),
   }),
   params: emptyObject,
   query: emptyObject,
@@ -58,6 +58,12 @@ const getCollectionSchema = z.object({
 });
 
 const getRemittanceSchema = z.object({
+  body: emptyObject,
+  params: remittanceParamsSchema,
+  query: emptyObject,
+});
+
+const submitRemittanceSchema = z.object({
   body: emptyObject,
   params: remittanceParamsSchema,
   query: emptyObject,
@@ -92,6 +98,7 @@ module.exports = {
   createCollectionSchema,
   collectPaymentSchema,
   createRemittanceSchema,
+  submitRemittanceSchema,
   addRemittanceItemSchema,
   getCollectionSchema,
   getRemittanceSchema,

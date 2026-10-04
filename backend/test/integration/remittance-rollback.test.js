@@ -62,7 +62,7 @@ test.before(async () => {
           actual_amount,
           status
         )
-        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        VALUES (?, ?, ?, ?, ?, 'SUBMITTED')
       `,
       [
         ORGANIZATION_ID,
@@ -155,7 +155,7 @@ test("verifyRemittance rolls back all changes when review creation fails", async
 
   const remittance = remittanceRows[0];
 
-  assert.equal(remittance.status, "PENDING");
+  assert.equal(remittance.status, "SUBMITTED");
   assert.equal(Number(remittance.expected_amount), 5000);
   assert.equal(Number(remittance.actual_amount), 4000);
   assert.equal(remittance.variance_amount, "-1000.00");

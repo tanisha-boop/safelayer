@@ -88,8 +88,46 @@ async function notifyFinance({
   });
 }
 
+async function notifyManagersAndFinance({
+  organizationId,
+  type,
+  title,
+  message,
+  entityType,
+  entityId,
+  connection = null,
+}) {
+  const managers =
+    await recipientService.getManagers(
+      organizationId
+    );
+
+  const financeUsers =
+    await recipientService.getFinanceUsers(
+      organizationId
+    );
+
+  const recipients =
+    await recipientService.uniqueUserIds([
+      ...managers,
+      ...financeUsers,
+    ]);
+
+  return notificationService.createNotificationsForUsers({
+    userIds: recipients,
+    organizationId,
+    type,
+    title,
+    message,
+    entityType,
+    entityId,
+    connection,
+  });
+}
+
 module.exports = {
   notifyUser,
   notifyManagers,
   notifyFinance,
+  notifyManagersAndFinance,
 };
