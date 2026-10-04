@@ -238,17 +238,24 @@ useEffect(() => {
   const reviews = selectedInvoice?.reviews || [];
   const assessment = selectedInvoice?.assessment;
 
-  const canCreate =
-    user?.role === "OWNER" ||
-    user?.role === "ADMIN" ||
-    user?.role === "FIELD_WORKER" ||
-    user?.role === "FINANCE";
+  const role =
+    user?.roles?.[0]?.name ||
+    user?.role ||
+    "";
 
-  const canReview =
-    user?.role === "OWNER" ||
-    user?.role === "ADMIN" ||
-    user?.role === "MANAGER" ||
-    user?.role === "FINANCE";
+  const canCreate = [
+    "OWNER",
+    "ADMIN",
+    "FIELD_WORKER",
+    "FINANCE",
+  ].includes(role);
+
+  const canReview = [
+    "OWNER",
+    "ADMIN",
+    "MANAGER",
+    "FINANCE",
+  ].includes(role);
 
   return (
     <div className="space-y-6">

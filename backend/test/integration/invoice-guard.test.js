@@ -546,6 +546,162 @@ test(
 );
 
 test(
+  "invoice detail returns the latest risk assessment after verification",
+  async () => {
+    const connection = await pool.getConnection();
+
+    let invoiceId;
+
+    try {
+      invoiceId = await createInvoiceFixture(
+        connection,
+        {
+          vendorName:
+            "Invoice Detail Assessment Vendor",
+          invoiceNumber:
+            `IG-DETAIL-ASSESSMENT-${Date.now()}`,
+          invoiceDate: null,
+          dueDate: null,
+          amount: 12500,
+        }
+      );
+    } finally {
+      connection.release();
+    }
+
+    try {
+      const cookie = await createAuthCookie(
+        OWNER_ID,
+        ORGANIZATION_ID,
+        "OWNER"
+      );
+
+      const verifyResponse =
+        await request(
+          `/api/invoices/${invoiceId}/verify`,
+          {
+            method: "POST",
+            headers: {
+              Cookie: cookie,
+            },
+          }
+        );
+
+      assert.equal(
+        verifyResponse.status,
+        200
+      );
+
+      const verifyPayload =
+        await verifyResponse.json();
+
+      assert.ok(
+        verifyPayload.data?.assessment,
+        "Verification response must contain assessment"
+      );
+
+      const detailResponse =
+        await request(
+          `/api/invoices/${invoiceId}`,
+          {
+            headers: {
+              Cookie: cookie,
+            },
+          }
+        );
+
+      assert.equal(
+        detailResponse.status,
+        200
+      );
+
+      const detailPayload =
+        await detailResponse.json();
+
+      const assessment =
+        detailPayload.data?.assessment;
+
+      assert.ok(
+        assessment,
+        "Invoice detail must contain the latest assessment"
+      );
+
+      assert.equal(
+        assessment.trustScore,
+        verifyPayload.data.assessment.trustScore
+      );
+
+      assert.equal(
+        assessment.riskLevel,
+        verifyPayload.data.assessment.riskLevel
+      );
+
+      assert.equal(
+        assessment.assessmentType,
+        "INVOICE"
+      );
+
+      assert.equal(
+        assessment.duplicateDetected,
+        verifyPayload.data.assessment.duplicateDetected
+      );
+
+      assert.equal(
+        assessment.documentVerified,
+        verifyPayload.data.assessment.documentVerified
+      );
+
+      assert.equal(
+        assessment.requiresReview,
+        verifyPayload.data.assessment.requiresReview
+      );
+
+      assert.deepEqual(
+        assessment.signals,
+        verifyPayload.data.assessment.signals
+      );
+
+      const assessmentConnection =
+        await pool.getConnection();
+
+      try {
+        const storedAssessment =
+          await getLatestInvoiceRiskAssessment(
+            assessmentConnection,
+            invoiceId
+          );
+
+        assert.ok(storedAssessment);
+
+        assert.equal(
+          Number(assessment.trustScore),
+          Number(storedAssessment.trust_score)
+        );
+
+        assert.equal(
+          assessment.riskLevel,
+          storedAssessment.risk_level
+        );
+      } finally {
+        assessmentConnection.release();
+      }
+    } finally {
+      const cleanupConnection =
+        await pool.getConnection();
+
+      try {
+        await cleanupInvoice(
+          cleanupConnection,
+          invoiceId
+        );
+      } finally {
+        cleanupConnection.release();
+      }
+    }
+  }
+);
+
+test(
   "authorized invoice creation works",
   async () => {
     const cookie = await createAuthCookie(

@@ -13,6 +13,43 @@ function createError(message, statusCode) {
   return error;
 }
 
+function normalizeRiskAssessment(row) {
+  if (!row) {
+    return null;
+  }
+
+  let explanation = row.explanation;
+
+  if (typeof explanation === "string") {
+    try {
+      explanation = JSON.parse(explanation);
+    } catch {
+      explanation = {};
+    }
+  }
+
+  explanation = explanation || {};
+
+  return {
+    id: row.id,
+    activityId: row.activity_id,
+    invoiceId: row.invoice_id,
+    assessmentType: row.assessment_type,
+    trustScore: Number(row.trust_score),
+    riskLevel: row.risk_level,
+    locationVerified: Boolean(row.location_verified),
+    timestampVerified: Boolean(row.timestamp_verified),
+    duplicateDetected: Boolean(row.duplicate_detected),
+    documentVerified: Boolean(row.document_verified),
+    requiresReview: Boolean(row.requires_review),
+    signals: Array.isArray(explanation.signals)
+      ? explanation.signals
+      : [],
+    explanation,
+    createdAt: row.created_at,
+  };
+}
+
 function calculateRisk({
   invoice,
   duplicateCandidates,
@@ -213,6 +250,15 @@ async function getInvoice(
       invoiceId
     );
 
+  const assessmentRow =
+    await invoiceRepository.findLatestRiskAssessment(
+      organizationId,
+      invoiceId
+    );
+
+  const assessment =
+    normalizeRiskAssessment(assessmentRow);
+
   const reviewResult =
     await reviewService.listReviews({
       organizationId,
@@ -231,6 +277,7 @@ async function getInvoice(
     invoice,
     evidence,
     reviews,
+    assessment,
   };
 }
 
