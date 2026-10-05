@@ -99,7 +99,23 @@ async function findRequirementById(
             THEN 1
             ELSE 0
           END
-        ) AS verified_evidence_count
+        ) AS verified_evidence_count,
+
+        SUM(
+          CASE
+            WHEN cre.verification_status = 'PENDING'
+            THEN 1
+            ELSE 0
+          END
+        ) AS pending_evidence_count,
+
+        MAX(
+          CASE
+            WHEN cre.verification_status = 'VERIFIED'
+            THEN cre.expiry_date
+            ELSE NULL
+          END
+        ) AS latest_verified_evidence_expiry
 
       FROM compliance_requirements cr
 
@@ -197,7 +213,15 @@ async function listRequirements({
             THEN 1
             ELSE 0
           END
-        ) AS pending_evidence_count
+        ) AS pending_evidence_count,
+
+        MAX(
+          CASE
+            WHEN cre.verification_status = 'VERIFIED'
+            THEN cre.expiry_date
+            ELSE NULL
+          END
+        ) AS latest_verified_evidence_expiry
 
       FROM compliance_requirements cr
 
@@ -466,6 +490,7 @@ async function updateEvidenceVerification({
         verification_status = ?,
         verification_notes = ?
       WHERE id = ?
+        AND verification_status = 'PENDING'
     `,
     [
       verificationStatus,

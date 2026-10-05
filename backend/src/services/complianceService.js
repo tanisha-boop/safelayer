@@ -33,6 +33,56 @@ async function calculateFileHash(filePath) {
     .digest("hex");
 }
 
+function normalizeDateOnly(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    const normalized = new Date(value);
+    normalized.setHours(0, 0, 0, 0);
+
+    return Number.isNaN(normalized.getTime())
+      ? null
+      : normalized;
+  }
+
+  const valueString = String(value).trim();
+
+  if (!valueString) {
+    return null;
+  }
+
+  const dateOnlyMatch =
+    /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(valueString);
+
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+
+    const normalized = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+
+    normalized.setHours(0, 0, 0, 0);
+
+    return Number.isNaN(normalized.getTime())
+      ? null
+      : normalized;
+  }
+
+  const parsed = new Date(valueString);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+
+  return parsed;
+}
+
 function calculateRequirementStatus(
   requirement
 ) {
@@ -45,28 +95,53 @@ function calculateRequirementStatus(
     return "PENDING";
   }
 
-  if (!requirement.expiry_date) {
-    return "ACTIVE";
-  }
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const expiry = new Date(
-    `${requirement.expiry_date}T00:00:00`
-  );
+  const expiryDates = [];
 
-  const difference =
-    Math.ceil(
-      (expiry - today) /
-        (1000 * 60 * 60 * 24)
+  const requirementExpiry =
+    normalizeDateOnly(
+      requirement.expiry_date
     );
 
-  if (difference < 0) {
+  if (requirementExpiry) {
+    expiryDates.push(requirementExpiry);
+  }
+
+  const evidenceExpiry =
+    normalizeDateOnly(
+      requirement.latest_verified_evidence_expiry
+    );
+
+  if (evidenceExpiry) {
+    expiryDates.push(evidenceExpiry);
+  }
+
+  if (expiryDates.length === 0) {
+    return "ACTIVE";
+  }
+
+  const earliestExpiry = new Date(
+    Math.min(
+      ...expiryDates.map(
+        (date) => date.getTime()
+      )
+    )
+  );
+
+  if (earliestExpiry < today) {
     return "EXPIRED";
   }
 
-  if (difference <= 30) {
+  const expiringThreshold =
+    new Date(today);
+
+  expiringThreshold.setDate(
+    expiringThreshold.getDate() + 30
+  );
+
+  if (earliestExpiry <= expiringThreshold) {
     return "EXPIRING_SOON";
   }
 
@@ -126,10 +201,7 @@ function serializeRequirement(
 
     pendingEvidenceCount:
       Number(
-        requirement.evidence_count || 0
-      ) -
-      Number(
-        requirement.verified_evidence_count || 0
+        requirement.pending_evidence_count || 0
       ),
 
     status:
@@ -723,7 +795,7 @@ async function verifyEvidence({
 
     if (!updated) {
       throw createError(
-        "Compliance evidence could not be updated",
+        "Only pending compliance evidence can be verified or rejected",
         409
       );
     }

@@ -121,6 +121,10 @@ export default function Compliance({ user }) {
   const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [detailError, setDetailError] = useState("");
 
+  const [editingRequirement, setEditingRequirement] = useState(false);
+  const [updatingRequirement, setUpdatingRequirement] = useState(false);
+  const [updateError, setUpdateError] = useState("");
+
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
@@ -253,6 +257,8 @@ useEffect(() => {
     setDetailError("");
     setUploadError("");
     setVerificationError("");
+    setEditingRequirement(false);
+    setUpdateError("");
     setLoadingEvidence(true);
 
     try {
@@ -326,6 +332,61 @@ useEffect(() => {
       );
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleUpdate(event) {
+    event.preventDefault();
+
+    if (!selectedRequirement) {
+      return;
+    }
+
+    setUpdatingRequirement(true);
+    setUpdateError("");
+
+    const form = new FormData(event.currentTarget);
+
+    const name = String(form.get("name") || "").trim();
+    const requirementType = String(
+      form.get("requirementType") || ""
+    ).trim();
+    const description = String(
+      form.get("description") || ""
+    ).trim();
+    const responsibleUserId =
+      form.get("responsibleUserId") || "";
+    const expiryDate = String(
+      form.get("expiryDate") || ""
+    ).trim();
+
+    const payload = {
+      name,
+      requirementType,
+      description,
+      responsibleUserId: responsibleUserId
+        ? Number(responsibleUserId)
+        : null,
+      expiryDate: expiryDate || null,
+    };
+
+    try {
+      await api.updateComplianceRequirement(
+        selectedRequirement.id,
+        payload
+      );
+
+      setEditingRequirement(false);
+      setUpdateError("");
+
+      await openRequirement(selectedRequirement);
+      await loadRequirements();
+    } catch (err) {
+      setUpdateError(
+        err.message || "Unable to update requirement."
+      );
+    } finally {
+      setUpdatingRequirement(false);
     }
   }
 
@@ -938,52 +999,212 @@ useEffect(() => {
                 </p>
               </div>
 
-              <button
-                onClick={() =>
-                  setSelectedRequirement(null)
-                }
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                {canManageRequirements(user) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUpdateError("");
+                      setEditingRequirement(true);
+                    }}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Edit requirement
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedRequirement(null)
+                  }
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-6 p-6 lg:grid-cols-[1fr_1.3fr]">
               <div className="space-y-5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Responsible user
-                  </p>
+                {editingRequirement ? (
+                  <form
+                    onSubmit={handleUpdate}
+                    className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/60"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-slate-900 dark:text-white">
+                        Edit requirement
+                      </h3>
 
-                  <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-                    {getResponsibleName(
-                      selectedRequirement
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Update the requirement details and renewal information.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-500">
+                        Requirement name
+                      </label>
+
+                      <input
+                        name="name"
+                        required
+                        defaultValue={selectedRequirement.name || ""}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">
+                          Type
+                        </label>
+
+                        <select
+                          name="requirementType"
+                          required
+                          defaultValue={
+                            selectedRequirement.requirementType || "Other"
+                          }
+                          className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        >
+                          {requirementTypes.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">
+                          Responsible user
+                        </label>
+
+                        <select
+                          name="responsibleUserId"
+                          defaultValue={
+                            selectedRequirement.responsibleUserId ??
+                            selectedRequirement.responsible_user_id ??
+                            ""
+                          }
+                          className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        >
+                          <option value="">
+                            Unassigned
+                          </option>
+
+                          {users.map((person) => (
+                            <option
+                              key={person.id}
+                              value={person.id}
+                            >
+                              {person.firstName} {person.lastName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-500">
+                        Description
+                      </label>
+
+                      <textarea
+                        name="description"
+                        rows="4"
+                        defaultValue={
+                          selectedRequirement.description || ""
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-500">
+                        Requirement expiry
+                      </label>
+
+                      <input
+                        name="expiryDate"
+                        type="date"
+                        defaultValue={
+                          selectedRequirement.expiryDate || ""
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+
+                    {updateError && (
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        {updateError}
+                      </p>
                     )}
-                  </p>
-                </div>
 
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Expiry
-                  </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRequirement(false);
+                          setUpdateError("");
+                        }}
+                        disabled={updatingRequirement}
+                        className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-white disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                      >
+                        Cancel
+                      </button>
 
-                  <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-                    {formatDate(
-                      selectedRequirement.expiryDate
-                    )}
-                  </p>
-                </div>
+                      <button
+                        type="submit"
+                        disabled={updatingRequirement}
+                        className="flex-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700"
+                      >
+                        {updatingRequirement
+                          ? "Saving..."
+                          : "Save changes"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Responsible user
+                      </p>
 
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Description
-                  </p>
+                      <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+                        {getResponsibleName(
+                          selectedRequirement
+                        )}
+                      </p>
+                    </div>
 
-                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {selectedRequirement.description ||
-                      "No description provided."}
-                  </p>
-                </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Expiry
+                      </p>
+
+                      <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+                        {formatDate(
+                          selectedRequirement.expiryDate
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Description
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {selectedRequirement.description ||
+                          "No description provided."}
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 {canUploadEvidence(user) && (
                   <form
