@@ -1,7 +1,13 @@
 const pool = require("../config/database");
 
-async function findUserByEmail(email) {
-  const [rows] = await pool.execute(
+function getExecutor(connection) {
+  return connection || pool;
+}
+
+async function findUserByEmail(email, connection = null) {
+  const executor = getExecutor(connection);
+
+  const [rows] = await executor.execute(
     `
       SELECT
         id,
@@ -23,8 +29,10 @@ async function findUserByEmail(email) {
   return rows[0] || null;
 }
 
-async function findUserById(userId) {
-  const [rows] = await pool.execute(
+async function findUserById(userId, connection = null) {
+  const executor = getExecutor(connection);
+
+  const [rows] = await executor.execute(
     `
       SELECT
         id,
@@ -108,8 +116,14 @@ async function findUsersByOrganization(organizationId) {
   return rows;
 }
 
-async function findUserByIdAndOrganization(userId, organizationId) {
-  const [rows] = await pool.execute(
+async function findUserByIdAndOrganization(
+  userId,
+  organizationId,
+  connection = null
+) {
+  const executor = getExecutor(connection);
+
+  const [rows] = await executor.execute(
     `
       SELECT
         id,
@@ -133,15 +147,60 @@ async function findUserByIdAndOrganization(userId, organizationId) {
   return rows[0] || null;
 }
 
-async function createUser({
+async function findUserByIdAndOrganizationForUpdate(
+  userId,
   organizationId,
-  firstName,
-  lastName,
-  email,
-  passwordHash,
-  role,
-}) {
-  const [result] = await pool.execute(
+  connection
+) {
+  if (!connection) {
+    throw new Error(
+      "A database connection is required for row locking."
+    );
+  }
+
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        organization_id,
+        first_name,
+        last_name,
+        email,
+        role,
+        is_active,
+        token_version,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = ?
+        AND organization_id = ?
+      LIMIT 1
+      FOR UPDATE
+    `,
+    [userId, organizationId]
+  );
+
+  return rows[0] || null;
+}
+
+async function createUser(
+  connection,
+  {
+    organizationId,
+    firstName,
+    lastName,
+    email,
+    passwordHash,
+    role,
+  }
+) {
+  if (!connection) {
+    throw new Error(
+      "A database connection is required to create a user."
+    );
+  }
+
+  const [result] = await connection.execute(
     `
       INSERT INTO users
         (
@@ -166,15 +225,23 @@ async function createUser({
 
   return findUserByIdAndOrganization(
     result.insertId,
-    organizationId
+    organizationId,
+    connection
   );
 }
 
 async function updateUser(
+  connection,
   userId,
   organizationId,
   { firstName, lastName, role }
 ) {
+  if (!connection) {
+    throw new Error(
+      "A database connection is required to update a user."
+    );
+  }
+
   const fields = [];
   const values = [];
 
@@ -197,13 +264,14 @@ async function updateUser(
   if (fields.length === 0) {
     return findUserByIdAndOrganization(
       userId,
-      organizationId
+      organizationId,
+      connection
     );
   }
 
   values.push(userId, organizationId);
 
-  await pool.execute(
+  await connection.execute(
     `
       UPDATE users
       SET ${fields.join(", ")}
@@ -215,12 +283,23 @@ async function updateUser(
 
   return findUserByIdAndOrganization(
     userId,
-    organizationId
+    organizationId,
+    connection
   );
 }
 
-async function deactivateUser(userId, organizationId) {
-  const [result] = await pool.execute(
+async function deactivateUser(
+  connection,
+  userId,
+  organizationId
+) {
+  if (!connection) {
+    throw new Error(
+      "A database connection is required to deactivate a user."
+    );
+  }
+
+  const [result] = await connection.execute(
     `
       UPDATE users
       SET
@@ -275,8 +354,13 @@ async function findUserPermissions(userId) {
   return rows;
 }
 
-async function findRoleByName(roleName) {
-  const [rows] = await pool.execute(
+async function findRoleByName(
+  roleName,
+  connection = null
+) {
+  const executor = getExecutor(connection);
+
+  const [rows] = await executor.execute(
     `
       SELECT
         id,
@@ -292,68 +376,33 @@ async function findRoleByName(roleName) {
   return rows[0] || null;
 }
 
-async function assignRole(userId, roleId) {
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
-    await connection.execute(
-      `
-        DELETE FROM user_roles
-        WHERE user_id = ?
-      `,
-      [userId]
+async function replaceUserRole(
+  connection,
+  userId,
+  roleId
+) {
+  if (!connection) {
+    throw new Error(
+      "A database connection is required to replace a user role."
     );
-
-    await connection.execute(
-      `
-        INSERT INTO user_roles
-          (user_id, role_id)
-        VALUES (?, ?)
-      `,
-      [userId, roleId]
-    );
-
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
   }
-}
 
-async function replaceUserRole(userId, roleId) {
-  const connection = await pool.getConnection();
+  await connection.execute(
+    `
+      DELETE FROM user_roles
+      WHERE user_id = ?
+    `,
+    [userId]
+  );
 
-  try {
-    await connection.beginTransaction();
-
-    await connection.execute(
-      `
-        DELETE FROM user_roles
-        WHERE user_id = ?
-      `,
-      [userId]
-    );
-
-    await connection.execute(
-      `
-        INSERT INTO user_roles
-          (user_id, role_id)
-        VALUES (?, ?)
-      `,
-      [userId, roleId]
-    );
-
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  await connection.execute(
+    `
+      INSERT INTO user_roles
+        (user_id, role_id)
+      VALUES (?, ?)
+    `,
+    [userId, roleId]
+  );
 }
 
 module.exports = {
@@ -362,12 +411,12 @@ module.exports = {
   findUserAuthState,
   findUsersByOrganization,
   findUserByIdAndOrganization,
+  findUserByIdAndOrganizationForUpdate,
   createUser,
   updateUser,
   deactivateUser,
   findUserRoles,
   findUserPermissions,
   findRoleByName,
-  assignRole,
   replaceUserRole,
 };

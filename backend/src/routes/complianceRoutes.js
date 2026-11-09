@@ -73,6 +73,13 @@ router.get(
 );
 
 router.get(
+  "/evidence/:id",
+  authorize("compliance:read"),
+  validate(evidenceIdSchema),
+  controller.getEvidenceById
+);
+
+router.get(
   "/evidence/:id/file",
   authorize("compliance:read"),
   validate(evidenceIdSchema),

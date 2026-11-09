@@ -22,19 +22,16 @@ async function list(req, res, next) {
 
 async function unreadCount(req, res, next) {
   try {
-    const result = await notificationService.getNotifications(
-      req.user.id,
-      req.user.organizationId,
-      {
-        page: 1,
-        limit: 1,
-      }
-    );
+    const unreadCount =
+      await notificationService.getUnreadNotificationCount(
+        req.user.id,
+        req.user.organizationId
+      );
 
     return res.json({
       success: true,
       data: {
-        unreadCount: result.unreadCount,
+        unreadCount,
       },
     });
   } catch (error) {

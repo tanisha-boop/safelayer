@@ -71,7 +71,11 @@ function formatDateTime(value) {
   });
 }
 
-export default function InvoiceGuard({ user }) {
+export default function InvoiceGuard({
+  user,
+  navigationTarget,
+  setNavigationTarget,
+}) {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
@@ -137,6 +141,22 @@ useEffect(() => {
 
   return () => clearTimeout(timer);
 }, [loadInvoices]);
+
+  useEffect(() => {
+    if (
+      navigationTarget?.entityType !== "INVOICE" ||
+      !navigationTarget?.entityId
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      loadInvoice(Number(navigationTarget.entityId));
+      setNavigationTarget?.(null);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [navigationTarget, setNavigationTarget]);
 
   async function handleCreate(event) {
     event.preventDefault();

@@ -102,7 +102,11 @@ function canUploadEvidence(user) {
   return ["OWNER", "ADMIN", "MANAGER"].includes(user?.role);
 }
 
-export default function Compliance({ user }) {
+export default function Compliance({
+  user,
+  navigationTarget,
+  setNavigationTarget,
+}) {
   const [requirements, setRequirements] = useState([]);
   const [users, setUsers] = useState([]);
 
@@ -118,6 +122,7 @@ export default function Compliance({ user }) {
 
   const [selectedRequirement, setSelectedRequirement] = useState(null);
   const [selectedEvidence, setSelectedEvidence] = useState([]);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState(null);
   const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [detailError, setDetailError] = useState("");
 
@@ -254,6 +259,7 @@ useEffect(() => {
   async function openRequirement(requirement) {
     setSelectedRequirement(requirement);
     setSelectedEvidence([]);
+    setSelectedEvidenceId(null);
     setDetailError("");
     setUploadError("");
     setVerificationError("");
@@ -281,6 +287,192 @@ useEffect(() => {
       setLoadingEvidence(false);
     }
   }
+
+  useEffect(() => {
+    if (
+      !navigationTarget?.entityType ||
+      !navigationTarget?.entityId
+    ) {
+      return;
+    }
+
+    const entityType =
+      String(navigationTarget.entityType).toUpperCase();
+
+    const targetId =
+      Number(navigationTarget.entityId);
+
+    if (
+      !Number.isInteger(targetId) ||
+      targetId <= 0
+    ) {
+      return;
+    }
+
+    if (
+      entityType === "COMPLIANCE_REQUIREMENT"
+    ) {
+      const requirement = requirements.find(
+        (item) =>
+          Number(item.id) === targetId
+      );
+
+      if (requirement) {
+        const timer = setTimeout(() => {
+          openRequirement(requirement);
+          setNavigationTarget?.(null);
+        }, 0);
+
+        return () => clearTimeout(timer);
+      }
+
+      return;
+    }
+
+    if (
+      entityType !== "COMPLIANCE_EVIDENCE"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadEvidenceTarget() {
+      try {
+        const evidenceResult =
+          await api.getComplianceEvidenceById(
+            targetId
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const evidence =
+          evidenceResult?.data || evidenceResult;
+
+        const requirementId =
+          Number(evidence?.requirementId);
+
+        if (
+          !Number.isInteger(requirementId) ||
+          requirementId <= 0
+        ) {
+          setDetailError(
+            "The compliance evidence has no valid parent requirement."
+          );
+          setNavigationTarget?.(null);
+          return;
+        }
+
+        let requirement =
+          requirements.find(
+            (item) =>
+              Number(item.id) === requirementId
+          );
+
+        /*
+         * Important:
+         * The current requirement list may be filtered.
+         * Therefore we cannot assume the parent is present locally.
+         */
+        if (!requirement) {
+          const requirementResult =
+            await api.getComplianceRequirement(
+              requirementId
+            );
+
+          if (cancelled) {
+            return;
+          }
+
+          requirement =
+            requirementResult?.data ||
+            requirementResult;
+        }
+
+        if (
+          !requirement ||
+          Number(requirement.id) !== requirementId
+        ) {
+          setDetailError(
+            "The parent compliance requirement could not be loaded."
+          );
+          setNavigationTarget?.(null);
+          return;
+        }
+
+        const timer = setTimeout(() => {
+          setSelectedEvidenceId(targetId);
+
+          openRequirement(requirement);
+
+          setNavigationTarget?.(null);
+        }, 0);
+
+        return () => clearTimeout(timer);
+      } catch (err) {
+        if (!cancelled) {
+          setDetailError(
+            err.message ||
+              "Unable to load the compliance evidence."
+          );
+          setNavigationTarget?.(null);
+        }
+      }
+    }
+
+    loadEvidenceTarget();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    navigationTarget,
+    requirements,
+    setNavigationTarget,
+  ]);
+
+  /*
+   * Scroll only after the selected requirement's evidence list
+   * has actually been rendered. This avoids racing the async
+   * openRequirement() request.
+   */
+  useEffect(() => {
+    if (
+      !selectedEvidenceId ||
+      selectedEvidence.length === 0
+    ) {
+      return;
+    }
+
+    const evidenceExists =
+      selectedEvidence.some(
+        (evidence) =>
+          Number(evidence.id) ===
+          Number(selectedEvidenceId)
+      );
+
+    if (!evidenceExists) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      document
+        .getElementById(
+          `compliance-evidence-${selectedEvidenceId}`
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [
+    selectedEvidence,
+    selectedEvidenceId,
+  ]);
 
   async function handleCreate(event) {
     event.preventDefault();
@@ -1332,6 +1524,7 @@ useEffect(() => {
                   <div className="mt-5 space-y-3">
                     {selectedEvidence.map((evidence) => (
                       <div
+                        id={`compliance-evidence-${evidence.id}`}
                         key={evidence.id}
                         className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"
                       >

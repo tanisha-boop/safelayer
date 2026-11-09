@@ -43,7 +43,11 @@ function statusClasses(status) {
   return "bg-amber-50 text-amber-700 border-amber-200";
 }
 
-function Evidence({ user }) {
+function Evidence({
+  user,
+  navigationTarget,
+  setNavigationTarget,
+}) {
   const [activities, setActivities] = useState([]);
   const [selectedActivityId, setSelectedActivityId] = useState("");
   const [evidence, setEvidence] = useState([]);
@@ -106,6 +110,58 @@ useEffect(() => {
 
   return () => clearTimeout(timer);
 }, []);
+
+useEffect(() => {
+  if (
+    navigationTarget?.entityType !== "EVIDENCE" ||
+    !navigationTarget?.entityId
+  ) {
+    return;
+  }
+
+  let cancelled = false;
+
+  async function resolveEvidenceTarget() {
+    try {
+      const result = await api.getEvidence(
+        Number(navigationTarget.entityId)
+      );
+
+      const evidenceRecord =
+        result?.data || result || {};
+
+      const activityId =
+        evidenceRecord.activity_id ??
+        evidenceRecord.activityId ??
+        evidenceRecord.activity?.id;
+
+      if (
+        !cancelled &&
+        activityId !== undefined &&
+        activityId !== null
+      ) {
+        setSelectedActivityId(String(activityId));
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setError(
+          err.message ||
+            "Unable to open the requested evidence."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setNavigationTarget?.(null);
+      }
+    }
+  }
+
+  resolveEvidenceTarget();
+
+  return () => {
+    cancelled = true;
+  };
+}, [navigationTarget, setNavigationTarget]);
 
 useEffect(() => {
   if (!selectedActivityId) {

@@ -49,7 +49,7 @@ async function findNotificationsByUser(
      FROM notifications
      WHERE user_id = ?
        AND organization_id = ?
-     ORDER BY created_at DESC
+     ORDER BY created_at DESC, id DESC
      LIMIT ? OFFSET ?`,
     [userId, organizationId, Number(limit), Number(offset)]
   );

@@ -8,6 +8,7 @@ const reviewService = require("../../src/services/reviewService");
 const ORGANIZATION_ID = 1;
 const ACTOR_ID = 1;
 const COLLECTOR_ID = 4;
+const ACTIVITY_ID = 4;
 
 const currentUser = {
   id: ACTOR_ID,
@@ -19,6 +20,40 @@ const TEST_REFERENCE = `AUTO-ROLLBACK-${Date.now()}`;
 
 let remittanceId;
 let transactionId;
+let collectionId;
+
+
+async function createTestCollection(connection, reference) {
+  const [collectionResult] = await connection.execute(
+    `
+      INSERT INTO collection_records (
+        organization_id,
+        activity_id,
+        collector_id,
+        reference_number,
+        expected_amount,
+        collected_amount,
+        collection_status,
+        collected_at,
+        notes
+      )
+      VALUES (
+        ?, ?, ?, ?, 5000, 5000,
+        'COLLECTED', NOW(), ?
+      )
+    `,
+    [
+      ORGANIZATION_ID,
+      ACTIVITY_ID,
+      COLLECTOR_ID,
+      `${reference}-COLL`,
+      "Remittance verification integration test",
+    ]
+  );
+
+  return collectionResult.insertId;
+}
+
 
 test.before(async () => {
   const connection = await pool.getConnection();
@@ -86,6 +121,11 @@ test.before(async () => {
       [remittanceId, transactionId]
     );
 
+    collectionId = await createTestCollection(
+      connection,
+      TEST_REFERENCE
+    );
+
     await connection.execute(
       `
         INSERT INTO remittance_items (
@@ -99,7 +139,7 @@ test.before(async () => {
       [
         ORGANIZATION_ID,
         remittanceId,
-        2,
+        collectionId,
         5000,
       ]
     );
@@ -200,6 +240,25 @@ test("verifyRemittance rolls back all changes when review creation fails", async
 
   assert.equal(reviewRows.length, 0);
 
+  const [notificationRows] =
+    await pool.execute(
+      `
+        SELECT id
+        FROM notifications
+        WHERE organization_id = ?
+          AND entity_type = 'REMITTANCE'
+          AND entity_id = ?
+          AND type = 'REMITTANCE_REQUIRES_REVIEW'
+      `,
+      [ORGANIZATION_ID, remittanceId]
+    );
+
+  assert.equal(
+    notificationRows.length,
+    0,
+    "Failed remittance verification must not leave any notification behind"
+  );
+
   const [auditRows] = await pool.execute(
     `
       SELECT id
@@ -223,6 +282,17 @@ test.after(async () => {
 
   try {
     await connection.beginTransaction();
+
+    await connection.execute(
+      `
+        DELETE FROM notifications
+        WHERE organization_id = ?
+          AND entity_type = 'REMITTANCE'
+          AND entity_id = ?
+          AND type = 'REMITTANCE_REQUIRES_REVIEW'
+      `,
+      [ORGANIZATION_ID, remittanceId]
+    );
 
     await connection.execute(
       `
@@ -265,6 +335,15 @@ test.after(async () => {
         WHERE remittance_id = ?
       `,
       [remittanceId]
+    );
+
+    await connection.execute(
+      `
+        DELETE FROM collection_records
+        WHERE organization_id = ?
+          AND id = ?
+      `,
+      [ORGANIZATION_ID, collectionId]
     );
 
     await connection.execute(

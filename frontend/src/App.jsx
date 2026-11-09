@@ -20,6 +20,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState("overview");
+  const [navigationTarget, setNavigationTarget] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("safelayer-theme") || "light");
 
   useEffect(() => {
@@ -87,6 +88,7 @@ function App() {
           activePage={activePage}
           user={user}
           setActivePage={setActivePage}
+          setNavigationTarget={setNavigationTarget}
           onLogout={handleLogout}
           theme={theme}
           setTheme={setTheme}
@@ -96,11 +98,19 @@ function App() {
   {activePage === "overview" && <Dashboard user={user} setActivePage={setActivePage} />}
 
   {activePage === "field-operations" && (
-    <FieldOperations user={user} />
+    <FieldOperations
+      user={user}
+      navigationTarget={navigationTarget}
+      setNavigationTarget={setNavigationTarget}
+    />
   )}
 
   {activePage === "evidence" && (
-    <Evidence user={user} />
+    <Evidence
+      user={user}
+      navigationTarget={navigationTarget}
+      setNavigationTarget={setNavigationTarget}
+    />
   )}
 
   {activePage === "route-proof" && (
@@ -108,11 +118,19 @@ function App() {
   )}
 
   {activePage === "field-ledger" && (
-    <FieldLedger user={user} />
+    <FieldLedger
+      user={user}
+      navigationTarget={navigationTarget}
+      setNavigationTarget={setNavigationTarget}
+    />
   )}
 
   {activePage === "invoice-guard" && (
-    <InvoiceGuard user={user} />
+    <InvoiceGuard
+      user={user}
+      navigationTarget={navigationTarget}
+      setNavigationTarget={setNavigationTarget}
+    />
   )}
 
   {activePage === "reviews" && (
@@ -128,7 +146,11 @@ function App() {
   )}
 
   {activePage === "compliance" && (
-    <Compliance user={user} />
+    <Compliance
+      user={user}
+      navigationTarget={navigationTarget}
+      setNavigationTarget={setNavigationTarget}
+    />
   )}
 
   {activePage === "settings" && (

@@ -691,6 +691,29 @@ return evidence.map(
 );
 }
 
+async function getEvidence({
+  organizationId,
+  evidenceId,
+}) {
+  const evidence =
+    await complianceRepository.findEvidenceById(
+      evidenceId
+    );
+
+  if (
+    !evidence ||
+    Number(evidence.organization_id) !==
+      Number(organizationId)
+  ) {
+    throw createError(
+      "Compliance evidence not found",
+      404
+    );
+  }
+
+  return serializeComplianceEvidence(evidence);
+}
+
 async function getEvidenceFile({
   organizationId,
   evidenceId,
@@ -866,6 +889,7 @@ module.exports = {
   updateRequirement,
   uploadEvidence,
   getRequirementEvidence,
+  getEvidence,
   getEvidenceFile,
   verifyEvidence,
 };

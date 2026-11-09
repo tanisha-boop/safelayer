@@ -125,6 +125,29 @@ async function getEvidence(
   }
 }
 
+async function getEvidenceById(
+  req,
+  res,
+  next
+) {
+  try {
+    const evidence =
+      await complianceService.getEvidence({
+        organizationId:
+          req.user.organizationId,
+        evidenceId:
+          req.validated.params.id,
+      });
+
+    res.json({
+      success: true,
+      data: evidence,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getEvidenceFile(
   req,
   res,
@@ -183,6 +206,7 @@ module.exports = {
   update,
   uploadEvidence,
   getEvidence,
+  getEvidenceById,
   getEvidenceFile,
   verifyEvidence,
 };

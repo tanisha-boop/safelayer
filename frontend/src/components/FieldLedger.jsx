@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -96,7 +96,11 @@ function Metric({ label, value, icon: Icon, danger = false }) {
   );
 }
 
-export default function FieldLedger({ user }) {
+export default function FieldLedger({
+  user,
+  navigationTarget,
+  setNavigationTarget,
+}) {
   const [collections, setCollections] = useState([]);
   const [remittances, setRemittances] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -327,10 +331,10 @@ useEffect(() => {
   };
 }, [statusFilter]);
 
-  function clearMessages() {
+  const clearMessages = useCallback(() => {
     setError("");
     setSuccess("");
-  }
+  }, []);
 
   function handleActivityChange(activityId) {
     const activity = activities.find(
@@ -378,7 +382,7 @@ useEffect(() => {
     }
   }
 
-  async function openCollection(collection) {
+  const openCollection = useCallback(async (collection) => {
     setLoadingDetail(true);
     clearMessages();
 
@@ -398,7 +402,7 @@ useEffect(() => {
     } finally {
       setLoadingDetail(false);
     }
-  }
+  }, [clearMessages]);
 
   async function handleRecordPayment(event) {
     event.preventDefault();
@@ -428,6 +432,82 @@ useEffect(() => {
       setSaving(false);
     }
   }
+
+  const handleSelectRemittance = useCallback(async (id) => {
+    if (!id) {
+      setSelectedRemittanceId("");
+      setSelectedRemittance(null);
+      return;
+    }
+
+    clearMessages();
+    setLoadingDetail(true);
+    setSelectedRemittanceId(String(id));
+
+    try {
+      const result = await api.getRemittance(Number(id));
+      const data = result?.data || result;
+
+      setSelectedRemittance(
+        data?.remittance || data
+      );
+    } catch (err) {
+      setError(
+        err.message || "Unable to load remittance."
+      );
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [clearMessages]);
+
+  useEffect(() => {
+    if (
+      !navigationTarget?.entityType ||
+      !navigationTarget?.entityId
+    ) {
+      return;
+    }
+
+    const targetId = Number(
+      navigationTarget.entityId
+    );
+
+    if (
+      navigationTarget.entityType === "COLLECTION"
+    ) {
+      const collection = collections.find(
+        (item) => Number(item.id) === targetId
+      );
+
+      if (collection) {
+        const timer = setTimeout(() => {
+          openCollection(collection);
+          setNavigationTarget?.(null);
+        }, 0);
+
+        return () => clearTimeout(timer);
+      }
+
+      return;
+    }
+
+    if (
+      navigationTarget.entityType === "REMITTANCE"
+    ) {
+      const timer = setTimeout(() => {
+        handleSelectRemittance(targetId);
+        setNavigationTarget?.(null);
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    navigationTarget,
+    collections,
+    setNavigationTarget,
+    openCollection,
+    handleSelectRemittance,
+  ]);
 
   async function handleCreateRemittance(event) {
     event.preventDefault();
@@ -473,32 +553,7 @@ useEffect(() => {
     }
   }
 
-  async function handleSelectRemittance(id) {
-    if (!id) {
-      setSelectedRemittanceId("");
-      setSelectedRemittance(null);
-      return;
-    }
 
-    clearMessages();
-    setLoadingDetail(true);
-    setSelectedRemittanceId(String(id));
-
-    try {
-      const result = await api.getRemittance(Number(id));
-      const data = result?.data || result;
-
-      setSelectedRemittance(
-        data?.remittance || data
-      );
-    } catch (err) {
-      setError(
-        err.message || "Unable to load remittance."
-      );
-    } finally {
-      setLoadingDetail(false);
-    }
-  }
 
   async function refreshRemittance() {
     if (!selectedRemittance?.id) {

@@ -329,6 +329,10 @@ async function findCollectionRemittance(
      FROM remittance_items ri
      INNER JOIN remittances r
        ON r.id = ri.remittance_id
+      AND r.organization_id = ri.organization_id
+     INNER JOIN collection_records cr
+       ON cr.id = ri.collection_id
+      AND cr.organization_id = ri.organization_id
      WHERE ri.organization_id = ?
        AND ri.collection_id = ?
      ORDER BY ri.id DESC
@@ -454,8 +458,12 @@ async function findRemittanceItems(
       cr.collected_amount,
       cr.collection_status
      FROM remittance_items ri
+     INNER JOIN remittances r
+       ON r.id = ri.remittance_id
+      AND r.organization_id = ri.organization_id
      INNER JOIN collection_records cr
        ON cr.id = ri.collection_id
+      AND cr.organization_id = ri.organization_id
      WHERE ri.organization_id = ?
        AND ri.remittance_id = ?
      ORDER BY ri.id ASC`,

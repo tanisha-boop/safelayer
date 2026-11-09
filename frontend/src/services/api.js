@@ -119,6 +119,9 @@ export const api = {
     );
   },
 
+  getComplianceEvidenceById: (id) =>
+    request(`/compliance/evidence/${id}`),
+
   getComplianceEvidenceFileUrl: (id) =>
     `${API_URL}/compliance/evidence/${id}/file`,
 

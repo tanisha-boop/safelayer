@@ -6,6 +6,9 @@ const fieldLedgerRepository =
 const reviewService =
   require("./reviewService");
 
+const notificationEventService =
+  require("./notificationEventService");
+
 const activityRepository =
   require("../repositories/activityRepository");
 
@@ -634,11 +637,12 @@ async function addRemittanceItem(
     }
 
     if (
-      collection.collection_status ===
-      "CANCELLED"
+      ["CANCELLED", "RECONCILED"].includes(
+        collection.collection_status
+      )
     ) {
       throw createError(
-        "Cancelled collections cannot be remitted",
+        "Cancelled or reconciled collections cannot be remitted",
         409
       );
     }
@@ -686,6 +690,16 @@ async function addRemittanceItem(
     if (!transaction) {
       throw createError(
         "Financial transaction not found for this collection",
+        409
+      );
+    }
+
+    if (
+      Number(transaction.activity_id) !==
+      Number(collection.activity_id)
+    ) {
+      throw createError(
+        "Financial transaction does not belong to this collection activity",
         409
       );
     }
@@ -924,6 +938,21 @@ async function verifyRemittance(
           `Expected ${expectedAmount.toFixed(2)} PHP, ` +
           `actual ${actualAmount.toFixed(2)} PHP, ` +
           `variance ${variance.toFixed(2)} PHP.`,
+        connection,
+      });
+
+      await notificationEventService.notifyManagersAndFinance({
+        organizationId,
+        type: "REMITTANCE_REQUIRES_REVIEW",
+        title: "Remittance variance requires review",
+        message:
+          `Remittance ${remittance.remittance_reference} has a ` +
+          `${Math.abs(variance) >= 1000 ? "critical" : "high"} ` +
+          `variance of ${variance.toFixed(2)} PHP. ` +
+          `Expected ${expectedAmount.toFixed(2)} PHP, ` +
+          `actual ${actualAmount.toFixed(2)} PHP.`,
+        entityType: "REMITTANCE",
+        entityId: remittanceId,
         connection,
       });
     }

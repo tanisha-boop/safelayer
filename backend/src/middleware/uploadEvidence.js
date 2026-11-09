@@ -37,11 +37,6 @@ const uploadEvidence = multer({
   },
 
   fileFilter: (req, file, cb) => {
-    console.log(
-      "Evidence upload MIME type:",
-      file.mimetype
-    );
-
     if (!allowedMimeTypes.has(file.mimetype)) {
       return cb(
         new Error(

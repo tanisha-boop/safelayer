@@ -107,6 +107,16 @@ async function getNotifications(userId, organizationId, options = {}) {
   };
 }
 
+async function getUnreadNotificationCount(
+  userId,
+  organizationId
+) {
+  return notificationRepository.countUnreadByUser(
+    userId,
+    organizationId
+  );
+}
+
 async function markNotificationAsRead(
   notificationId,
   userId,
@@ -133,6 +143,7 @@ module.exports = {
   createNotification,
   createNotificationsForUsers,
   getNotifications,
+  getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
 };

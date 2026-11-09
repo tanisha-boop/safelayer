@@ -19,6 +19,7 @@ export default function Topbar({
   user,
   setSidebarOpen,
   setActivePage,
+  setNavigationTarget,
   onLogout,
   theme,
   setTheme,
@@ -172,18 +173,33 @@ useEffect(() => {
   }
 
   async function handleNotificationClick(notification) {
+    const entityType = String(
+      notification?.entity_type || ""
+    ).toUpperCase();
+
+    const entityId = Number(notification?.entity_id);
+
     const pageByEntityType = {
       COMPLIANCE_REQUIREMENT: "compliance",
       COMPLIANCE_EVIDENCE: "compliance",
       INVOICE: "invoice-guard",
       FIELD_ACTIVITY: "field-operations",
       EVIDENCE: "evidence",
+      COLLECTION: "field-ledger",
+      REMITTANCE: "field-ledger",
     };
 
-    const targetPage =
-      pageByEntityType[notification.entity_type];
+    const targetPage = pageByEntityType[entityType];
 
     if (targetPage) {
+      setNavigationTarget({
+        entityType,
+        entityId:
+          Number.isInteger(entityId) && entityId > 0
+            ? entityId
+            : null,
+      });
+
       setActivePage(targetPage);
       setNotificationsOpen(false);
     }
@@ -213,7 +229,10 @@ useEffect(() => {
 
       setUnreadCount((current) => Math.max(current - 1, 0));
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error(
+        "Failed to mark notification as read:",
+        error
+      );
     }
   }
 

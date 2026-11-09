@@ -19,6 +19,40 @@ const TEST_REFERENCE = `AUTO-MATCHED-${Date.now()}`;
 
 let remittanceId;
 let transactionId;
+let collectionId;
+
+
+async function createTestCollection(connection, reference) {
+  const [collectionResult] = await connection.execute(
+    `
+      INSERT INTO collection_records (
+        organization_id,
+        activity_id,
+        collector_id,
+        reference_number,
+        expected_amount,
+        collected_amount,
+        collection_status,
+        collected_at,
+        notes
+      )
+      VALUES (
+        ?, ?, ?, ?, 5000, 5000,
+        'COLLECTED', NOW(), ?
+      )
+    `,
+    [
+      ORGANIZATION_ID,
+      ACTIVITY_ID,
+      COLLECTOR_ID,
+      `${reference}-COLL`,
+      "Remittance verification integration test",
+    ]
+  );
+
+  return collectionResult.insertId;
+}
+
 
 test.before(async () => {
   const connection = await pool.getConnection();
@@ -86,6 +120,11 @@ test.before(async () => {
       [remittanceId, transactionId]
     );
 
+    collectionId = await createTestCollection(
+      connection,
+      TEST_REFERENCE
+    );
+
     await connection.execute(
       `
         INSERT INTO remittance_items (
@@ -99,7 +138,7 @@ test.before(async () => {
       [
         ORGANIZATION_ID,
         remittanceId,
-        2,
+        collectionId,
         5000,
       ]
     );
@@ -304,6 +343,15 @@ test.after(async () => {
           AND remittance_id = ?
       `,
       [ORGANIZATION_ID, remittanceId]
+    );
+
+    await connection.execute(
+      `
+        DELETE FROM collection_records
+        WHERE organization_id = ?
+          AND id = ?
+      `,
+      [ORGANIZATION_ID, collectionId]
     );
 
     await connection.execute(

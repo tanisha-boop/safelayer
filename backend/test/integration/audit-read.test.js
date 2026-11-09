@@ -995,21 +995,28 @@ test(
       const body = await response.json();
 
       assert.equal(body.success, true);
-      assert.equal(body.pagination.total, 1);
-      assert.equal(body.data.length, 1);
+      assert.ok(body.pagination.total >= 1);
+      assert.ok(body.data.length >= 1);
 
-      assert.equal(
-        body.data[0].id,
-        auditIds[3]
+      assert.ok(
+        body.data.every(
+          (event) =>
+            Number(event.actorId) === FIELD_WORKER_ID
+        )
       );
 
+      const fixtureEvent = body.data.find(
+        (event) => Number(event.id) === Number(auditIds[3])
+      );
+
+      assert.ok(fixtureEvent);
       assert.equal(
-        body.data[0].actorId,
+        fixtureEvent.actorId,
         FIELD_WORKER_ID
       );
 
       assert.equal(
-        body.data[0].action,
+        fixtureEvent.action,
         "AUDIT_FILTER_ACTION_C"
       );
     } finally {

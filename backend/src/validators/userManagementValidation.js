@@ -1,7 +1,6 @@
 const { z } = require("zod");
 
 const roles = [
-  "OWNER",
   "ADMIN",
   "MANAGER",
   "FIELD_WORKER",

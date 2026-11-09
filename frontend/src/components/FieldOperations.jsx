@@ -53,9 +53,13 @@ function normalizeActivities(result) {
   return [];
 }
 
-export default function FieldOperations() {
+export default function FieldOperations({
+  navigationTarget,
+  setNavigationTarget,
+}) {
   const [activities, setActivities] = useState([]);
   const [collections, setCollections] = useState([]);
+  const [selectedActivityId, setSelectedActivityId] = useState("");
   const [paymentCollection, setPaymentCollection] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -134,6 +138,34 @@ useEffect(() => {
       completed: activities.filter((item) => item.status === "COMPLETED").length,
     };
   }, [activities]);
+
+  useEffect(() => {
+    if (
+      navigationTarget?.entityType !== "FIELD_ACTIVITY" ||
+      !navigationTarget?.entityId
+    ) {
+      return;
+    }
+
+    const targetId = String(navigationTarget.entityId);
+
+    const timer = setTimeout(() => {
+      setSelectedActivityId(targetId);
+
+      setTimeout(() => {
+        document
+          .getElementById(`field-activity-${targetId}`)
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+      }, 50);
+
+      setNavigationTarget?.(null);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [navigationTarget, setNavigationTarget]);
 
   function getCollectionForActivity(activityId) {
     return collections.find(
@@ -333,8 +365,13 @@ useEffect(() => {
 
                   return (
                     <tr
+                      id={`field-activity-${activity.id}`}
                       key={activity.id}
-                      className="border-b border-slate-50 dark:border-slate-800 last:border-0"
+                      className={`border-b border-slate-50 dark:border-slate-800 last:border-0 transition ${
+                        String(selectedActivityId) === String(activity.id)
+                          ? "bg-blue-50 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/30 dark:ring-blue-900"
+                          : ""
+                      }`}
                     >
                       <td className="px-5 py-4">
                         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
