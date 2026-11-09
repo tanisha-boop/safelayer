@@ -41,7 +41,7 @@ SafeLayer currently organizes endpoints around major operational domains:
 
 /auth
 /users
-/organizations
+/organization
 /activities
 /evidence
 /route-proof
@@ -54,6 +54,7 @@ SafeLayer currently organizes endpoints around major operational domains:
 /dashboard
 /reports
 /search
+/compliance
 Authentication
 
 Authentication endpoints establish the authenticated user session.

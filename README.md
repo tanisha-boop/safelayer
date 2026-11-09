@@ -198,11 +198,14 @@ Audit Logging
 
 The architecture separates HTTP concerns, business logic, persistence logic, and security controls.
 
-See:
+See the architecture documentation:
 
-System Architecture
-Database Architecture
-API Architecture
+- [Overall Architecture](ARCHITECTURE.md)
+- [System Architecture](docs/architecture/system-architecture.md)
+- [Database Architecture](docs/architecture/database-architecture.md)
+- [API Architecture](docs/architecture/api-architecture.md)
+- [Backend Architecture](backend/docs/architecture/backend-architecture.md)
+- [Changelog](CHANGELOG.md)
 Security
 
 SafeLayer includes multiple security controls:
@@ -237,6 +240,7 @@ Database changes are maintained through versioned migrations:
 006_compliance.sql
 007_compliance_rbac.sql
 008_compliance_duplicate_evidence.sql
+009_review_remittance.sql
 
 The database uses:
 
@@ -254,8 +258,8 @@ The backend includes an automated Node.js test suite covering authentication, au
 
 Current verified backend test result:
 
-55 tests
-55 passing
+119 tests
+119 passing
 0 failing
 
 See Test Strategy.
@@ -297,6 +301,8 @@ SafeLayer/
 │
 ├── .env.example
 ├── .gitignore
+├── ARCHITECTURE.md
+├── CHANGELOG.md
 └── README.md
 Local Development
 Backend

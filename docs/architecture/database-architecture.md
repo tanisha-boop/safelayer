@@ -133,6 +133,7 @@ Current migration sequence:
 6. `006_compliance.sql`
 7. `007_compliance_rbac.sql`
 8. `008_compliance_duplicate_evidence.sql`
+9. `009_review_remittance.sql`
 
 Each migration represents a controlled stage of database evolution.
 
