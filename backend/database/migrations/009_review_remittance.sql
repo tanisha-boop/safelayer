@@ -3,8 +3,11 @@ USE safelayer;
 -- ============================================================
 -- SAFE LAYER REVIEW REMITTANCE SUPPORT
 -- ============================================================
--- Reviews may now target exactly one of:
+-- A review must target exactly one of:
 -- ACTIVITY, INVOICE, TRANSACTION, or REMITTANCE.
+--
+-- Risk assessment and assignee are supplementary references.
+-- RESTRICT preserves the exactly-one-target invariant.
 -- ============================================================
 
 ALTER TABLE reviews
@@ -14,12 +17,32 @@ ALTER TABLE reviews
 ALTER TABLE reviews
     ADD KEY fk_review_remittance (remittance_id);
 
+-- Remove the original SET NULL target relationships.
 ALTER TABLE reviews
+    DROP FOREIGN KEY fk_review_activity,
+    DROP FOREIGN KEY fk_review_transaction,
+    DROP FOREIGN KEY fk_review_invoice;
+
+-- Recreate all four target relationships with RESTRICT.
+ALTER TABLE reviews
+    ADD CONSTRAINT fk_review_activity
+        FOREIGN KEY (activity_id)
+        REFERENCES field_activities(id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_review_transaction
+        FOREIGN KEY (transaction_id)
+        REFERENCES transactions(id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_review_invoice
+        FOREIGN KEY (invoice_id)
+        REFERENCES invoices(id)
+        ON DELETE RESTRICT,
     ADD CONSTRAINT fk_review_remittance
         FOREIGN KEY (remittance_id)
         REFERENCES remittances(id)
-        ON DELETE SET NULL;
+        ON DELETE RESTRICT;
 
+-- Exactly one target must be supplied.
 ALTER TABLE reviews
     ADD CONSTRAINT chk_review_exactly_one_entity
     CHECK (

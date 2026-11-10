@@ -48,7 +48,7 @@ async function register({
     let counter = 2;
 
     while (
-      await organizationRepository.findOrganizationBySlug(slug)
+      await organizationRepository.findBySlug(slug)
     ) {
       slug = `${baseSlug}-${counter}`;
       counter++;
@@ -239,9 +239,16 @@ async function getCurrentUser(userId) {
   const permissions =
     await userRepository.findUserPermissions(user.id);
 
+  const organization =
+    await organizationRepository.findById(user.organization_id);
+
   return {
     id: user.id,
     organizationId: user.organization_id,
+    organizationName: organization?.name || null,
+    organization: organization
+      ? { id: organization.id, name: organization.name }
+      : null,
     firstName: user.first_name,
     lastName: user.last_name,
     email: user.email,
@@ -251,8 +258,60 @@ async function getCurrentUser(userId) {
   };
 }
 
+async function updateProfile(
+  userId,
+  organizationId,
+  { firstName, lastName }
+) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const existingUser =
+      await userRepository.findUserByIdAndOrganizationForUpdate(
+        userId,
+        organizationId,
+        connection
+      );
+
+    if (!existingUser) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!existingUser.is_active) {
+      const error = new Error("Account is inactive");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    await userRepository.updateUser(
+      connection,
+      userId,
+      organizationId,
+      { firstName, lastName }
+    );
+
+    await connection.commit();
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return getCurrentUser(userId);
+}
+
 module.exports = {
   register,
   login,
   getCurrentUser,
+  updateProfile,
 };

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -38,6 +38,19 @@ export const api = {
 
   getMe: () => request("/auth/me"),
 
+  updateProfile: (profile) =>
+    request("/auth/profile", {
+      method: "PATCH",
+      body: JSON.stringify(profile),
+    }),
+
+
+  register: (account) =>
+    request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(account),
+    }),
+
   login: (email, password) =>
     request("/auth/login", {
       method: "POST",
@@ -52,6 +65,24 @@ export const api = {
   getActivities: () => request("/activities"),
 
   getUsers: () => request("/users"),
+
+  createUser: (user) =>
+    request("/users", {
+      method: "POST",
+      body: JSON.stringify(user),
+    }),
+
+  updateUser: (id, changes) =>
+    request(`/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+
+  deactivateUser: (id) =>
+    request(`/users/${id}/deactivate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 
     getComplianceRequirements: (filters = {}) => {
     const params = new URLSearchParams();

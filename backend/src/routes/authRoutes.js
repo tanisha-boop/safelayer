@@ -5,6 +5,7 @@ const {
   login,
   me,
   logout,
+  updateProfile,
 } = require("../controllers/authController");
 
 const authenticate = require("../middleware/authMiddleware");
@@ -17,6 +18,7 @@ const {
 const {
   registerSchema,
   loginSchema,
+  profileUpdateSchema,
 } = require("../validators/authValidation");
 
 const router = express.Router();
@@ -45,6 +47,13 @@ router.post(
   "/logout",
   authenticate,
   logout
+);
+
+router.patch(
+  "/profile",
+  authenticate,
+  validate(profileUpdateSchema),
+  updateProfile
 );
 
 module.exports = router;

@@ -216,15 +216,21 @@ HTTP-only authentication cookies
 role-based authorization
 organization isolation
 request validation
+parameterized SQL queries
+Origin-based CSRF mitigation for state-changing requests
+restricted CORS configuration
 rate limiting
-security headers
+Helmet security headers
+React JSX automatic output escaping for ordinary text
 file validation
 file hashing
 controlled evidence access
 audit logging
 protected state transitions
 
-See Security Model.
+The Origin guard rejects state-changing browser requests from untrusted origins. Requests without an Origin header are allowed for non-browser clients. This is Origin-based mitigation, not token-based CSRF protection.
+
+See [Security Model](docs/security/security-model.md) for implementation details and limitations.
 
 Database
 

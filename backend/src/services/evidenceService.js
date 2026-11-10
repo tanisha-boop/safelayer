@@ -25,6 +25,17 @@ const mimeToEvidenceType = {
   "application/pdf": "DOCUMENT",
 };
 
+function serializeEvidence(evidence) {
+  if (!evidence) {
+    return null;
+  }
+
+  const serialized = { ...evidence };
+  delete serialized.file_path;
+
+  return serialized;
+}
+
 async function getActivity(
   organizationId,
   activityId
@@ -187,7 +198,7 @@ async function createEvidence({
 
     await connection.commit();
 
-    return evidence;
+    return serializeEvidence(evidence);
   } catch (error) {
     await connection.rollback();
 
@@ -230,7 +241,7 @@ async function getEvidence(
     throw error;
   }
 
-  return evidence;
+  return serializeEvidence(evidence);
 }
 
 async function getActivityEvidence(
@@ -242,9 +253,12 @@ async function getActivityEvidence(
     activityId
   );
 
-  return evidenceRepository.findByActivity(
-    activityId
-  );
+  const evidence =
+    await evidenceRepository.findByActivity(
+      activityId
+    );
+
+  return evidence.map(serializeEvidence);
 }
 
 async function verifyEvidence(
@@ -343,7 +357,7 @@ async function verifyEvidence(
 
     await connection.commit();
 
-    return updated;
+    return serializeEvidence(updated);
   } catch (error) {
     await connection.rollback();
     throw error;

@@ -65,6 +65,24 @@ async function me(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const user = await authService.updateProfile(
+      req.user.id,
+      req.user.organizationId,
+      req.validated.body
+    );
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: { user },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 function logout(req, res) {
   clearAccessTokenCookie(res);
 
@@ -79,4 +97,5 @@ module.exports = {
   login,
   me,
   logout,
+  updateProfile,
 };

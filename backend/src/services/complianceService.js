@@ -223,7 +223,6 @@ function serializeComplianceEvidence(
     uploadedBy: evidence.uploaded_by,
 
     fileName: evidence.file_name,
-    filePath: evidence.file_path,
     mimeType: evidence.mime_type,
     fileSize: Number(evidence.file_size || 0),
     fileHash: evidence.file_hash,

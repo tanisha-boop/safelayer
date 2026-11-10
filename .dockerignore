@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+!.env.docker.example
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/cookies.txt
+**/*.log
+backend/uploads
+.DS_Store

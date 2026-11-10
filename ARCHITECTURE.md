@@ -151,13 +151,22 @@ Implemented security mechanisms include:
 - Organization-level access restrictions.
 - Zod request validation.
 - Parameterized SQL queries.
+- Origin validation for state-changing requests as a CSRF mitigation.
+- HTTP-only authentication cookies with SameSite protection.
 - Helmet security headers.
-- CORS configuration.
+- CORS configuration restricted to the configured frontend origin.
 - Rate limiting.
 - File upload validation.
 - Centralized error handling.
+- React JSX automatic output escaping for ordinary rendered text.
 
 Authentication cookies use the HttpOnly and SameSite settings, with the Secure flag enabled in production.
+
+The Origin guard validates the Origin header on POST, PUT, PATCH, and DELETE requests against the configured frontend origin. Requests with foreign, malformed, or null origins are rejected with HTTP 403. Safe methods such as GET, HEAD, and OPTIONS are not checked by this middleware. Requests without an Origin header are allowed for non-browser clients.
+
+This is an Origin-based CSRF mitigation, not a token-based CSRF implementation. CORS restricts browser access to the API but is not itself a CSRF protection mechanism.
+
+React JSX automatically escapes ordinary text interpolations rendered in the interface. This protection should not be assumed for unsafe HTML injection APIs or untrusted URL attributes.
 
 Environment-specific configuration and secrets are supplied through environment variables rather than hardcoded application values.
 

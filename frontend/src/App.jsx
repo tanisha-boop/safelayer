@@ -10,6 +10,7 @@ import RiskTrust from "./components/RiskTrust";
 import Reports from "./components/Reports";
 import Compliance from "./components/Compliance";
 import Settings from "./components/Settings";
+import TeamManagement from "./components/TeamManagement";
 import Help from "./components/Help";
 import RouteProof from "./components/RouteProof";
 import Sidebar from "./components/Sidebar";
@@ -49,6 +50,12 @@ function App() {
     setUser(result?.data?.user || result?.user || null);
   }
 
+  async function handleRegister(account) {
+    await api.register(account);
+    const result = await api.getMe();
+    setUser(result?.data?.user || result?.user || null);
+  }
+
   async function handleLogout() {
     try {
       await api.logout();
@@ -71,7 +78,7 @@ function App() {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
   return (
@@ -154,7 +161,11 @@ function App() {
   )}
 
   {activePage === "settings" && (
-    <Settings user={user} theme={theme} />
+    <Settings user={user} theme={theme} onUserUpdated={setUser} />
+  )}
+
+  {activePage === "team-management" && (
+    <TeamManagement user={user} />
   )}
 
   {activePage === "help" && (
@@ -172,6 +183,7 @@ function App() {
     activePage !== "reports" &&
     activePage !== "compliance" &&
     activePage !== "settings" &&
+    activePage !== "team-management" &&
     activePage !== "help" &&
     (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">

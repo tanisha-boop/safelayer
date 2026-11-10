@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   WalletCards,
   BarChart3,
+  UsersRound,
 } from "lucide-react";
 
 const workspaceItems = [
@@ -31,6 +32,27 @@ const systemItems = [
   { id: "settings", label: "Settings", icon: Settings },
   { id: "help", label: "Help", icon: HelpCircle },
 ];
+
+function NavItem({ item, activePage, setActivePage }) {
+  const Icon = item.icon;
+  const active = activePage === item.id;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setActivePage(item.id)}
+      className={
+        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition " +
+        (active
+          ? "bg-slate-800 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
+          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-white")
+      }
+    >
+      <Icon size={17} />
+      <span>{item.label}</span>
+    </button>
+  );
+}
 
 export default function Sidebar({
   activePage,
@@ -53,26 +75,10 @@ export default function Sidebar({
     user?.role ||
     "USER";
 
-  function NavItem({ item }) {
-    const Icon = item.icon;
-    const active = activePage === item.id;
-
-    return (
-      <button
-        type="button"
-        onClick={() => setActivePage(item.id)}
-        className={
-          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition " +
-          (active
-            ? "bg-slate-800 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
-            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-white")
-        }
-      >
-        <Icon size={17} />
-        <span>{item.label}</span>
-      </button>
-    );
-  }
+  const canReadUsers =
+    user?.permissions?.some(
+      (permission) => permission.name === "users:read"
+    ) || false;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-colors dark:border-slate-800 dark:bg-slate-950">
@@ -116,6 +122,8 @@ export default function Sidebar({
             <NavItem
               key={item.id}
               item={item}
+              activePage={activePage}
+              setActivePage={setActivePage}
             />
           ))}
         </div>
@@ -125,10 +133,24 @@ export default function Sidebar({
         </p>
 
         <div className="space-y-1">
+          {canReadUsers && (
+            <NavItem
+              item={{
+                id: "team-management",
+                label: "Team Management",
+                icon: UsersRound,
+              }}
+              activePage={activePage}
+              setActivePage={setActivePage}
+            />
+          )}
+
           {systemItems.map((item) => (
             <NavItem
               key={item.id}
               item={item}
+              activePage={activePage}
+              setActivePage={setActivePage}
             />
           ))}
         </div>

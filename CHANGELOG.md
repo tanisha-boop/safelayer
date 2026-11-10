@@ -2,6 +2,14 @@
 
 All notable development milestones and changes to SafeLayer are documented here.
 
+## November 10, 2026 — Security Hardening
+
+- Added Origin validation middleware for state-changing API requests as a CSRF mitigation.
+- Added unit tests for trusted, foreign, malformed, and null origins, safe methods, missing Origin headers, and Docker frontend configuration.
+- Verified the Origin guard in the Docker deployment.
+- Documented parameterized SQL queries, Origin-based CSRF mitigation, and React JSX output escaping.
+- Backend test suite passed with 127 tests and no failures.
+
 ## November 9, 2026 — Initial SafeLayer Release
 
 - Consolidated the completed project into an initial release.

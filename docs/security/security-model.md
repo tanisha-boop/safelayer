@@ -57,6 +57,32 @@ File handling includes validation and hashing.
 
 The goal is to avoid treating uploaded files as automatically trustworthy input.
 
+## Database Query Security
+
+Database repositories use parameterized SQL statements for operations involving user-supplied values.
+
+Values are passed separately from SQL statements through database driver parameters rather than being concatenated into SQL strings. This helps prevent SQL injection through those parameterized values.
+
+## Cross-Site Request Forgery Mitigation
+
+The backend uses an Origin guard for state-changing HTTP methods: POST, PUT, PATCH, and DELETE.
+
+The middleware compares the request Origin against the configured frontend origin. Foreign, malformed, and null origins are rejected with HTTP 403.
+
+GET, HEAD, and OPTIONS requests are not checked by this middleware. Requests without an Origin header are allowed to support non-browser clients.
+
+This is an Origin-based CSRF mitigation. SameSite cookie settings provide an additional layer of protection. CORS restricts browser access to the API but is not itself CSRF protection.
+
+SafeLayer does not currently implement a synchronizer-token or double-submit-token CSRF mechanism. The Origin guard should therefore not be described as token-based CSRF protection.
+
+## Output Escaping
+
+The React frontend uses JSX, which automatically escapes ordinary text interpolations before rendering them into the page.
+
+The frontend should avoid inserting untrusted content through unsafe HTML APIs such as dangerouslySetInnerHTML unless that content has been appropriately sanitized.
+
+Automatic JSX escaping does not make every context safe. Untrusted URL attributes and other security-sensitive rendering contexts still require appropriate validation.
+
 Rate Limiting
 
 Rate limiting is applied to reduce abuse of API endpoints, particularly authentication-related operations.

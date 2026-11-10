@@ -7,6 +7,7 @@ const env = require("./config/env");
 
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
+const createOriginGuard = require("./middleware/originGuard");
 
 const authRoutes = require("./routes/authRoutes");
 const activityRoutes = require("./routes/activityRoutes");
@@ -34,6 +35,9 @@ app.use(
     credentials: true,
   })
 );
+
+// Check browser origins on state-changing requests to mitigate CSRF.
+app.use(createOriginGuard(env.frontendUrl));
 
 app.use(helmet());
 

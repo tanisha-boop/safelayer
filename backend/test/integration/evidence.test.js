@@ -398,16 +398,46 @@ test("assigned field worker can upload valid PDF evidence", async () => {
     "PENDING"
   );
 
+  assert.equal(
+    Object.hasOwn(body.data, "file_path"),
+    false,
+    "API response must not expose the internal file path"
+  );
+
+  assert.equal(
+    Object.hasOwn(body.data, "filePath"),
+    false,
+    "API response must not expose a camelCase internal file path"
+  );
+
+  const [storedEvidenceRows] =
+    await pool.execute(
+      `
+        SELECT file_path
+        FROM evidence
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [body.data.id]
+    );
+
+  assert.equal(
+    storedEvidenceRows.length,
+    1,
+    "Evidence metadata must exist in the database"
+  );
+
   const storedPath =
     path.resolve(
       process.cwd(),
-      body.data.file_path
+      storedEvidenceRows[0].file_path
     );
 
   assert.ok(
     storedPath.startsWith(
       `${uploadsDirectory}${path.sep}`
-    )
+    ),
+    "Uploaded evidence must be stored inside the uploads directory"
   );
 
   assert.equal(
